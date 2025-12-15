@@ -620,23 +620,33 @@ jobs:
           grep "KSU_VERSION_FULL" kernel/Kbuild
           echo "::endgroup::"
 
-      - name: Apply Patches SukiSU Ultra
-        env:
-          FILE: ${{ github.event.inputs.FILE }}
-        run: |
-          cd kernel_workspace
-          SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}${{ github.inputs.SUSFS_DEV == 'true' && '-dev' || '' }}
-          cd susfs4ksu
-          [ -n "$SUSFS_META" ] && git checkout "$SUSFS_META" || echo "SUSFS_META 为空，使用最新上游 SUSFS"
-          cd ..
-          git clone https://github.com/ShirkNeko/SukiSU_patch.git
-          git clone https://github.com/Numbersf/Action-Build.git
-          cd kernel_platform
-          echo "正在拉取susfs补丁"
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch ./common/
-          cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
-          cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          name: Apply Patches SukiSU Ultra
+          env:
+            FILE: ${{ github.event.inputs.FILE }}
+          run: |
+            cd kernel_workspace
+            SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
+            # 修改后：克隆主分支，然后明确回退到1.5版本
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git
+            cd susfs4ksu
+          
+            # 默认回退到最后一个1.5版本的commit（2.0.0之前）
+            if [[ -z "$SUSFS_META" ]]; then
+              git checkout babf6be1
+              echo "已回退到2.0.0之前的最后1.5版本 (babf6be1)"
+            else
+              git checkout "$SUSFS_META"
+              echo "使用用户指定的SUSFS版本: $SUSFS_META"
+            fi
+          
+            cd ..
+            git clone https://github.com/ShirkNeko/SukiSU_patch.git
+            git clone https://github.com/Numbersf/Action-Build.git
+            cd kernel_platform
+            echo "正在拉取susfs补丁"
+            cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch ./common/
+            cp ../susfsaccess-checking
+            Failed
 
           if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
             echo "正在拉取zram补丁"
