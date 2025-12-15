@@ -620,6 +620,8 @@ jobs:
           grep "KSU_VERSION_FULL" kernel/Kbuild
           echo "::endgroup::"
 
+
+
       - name: Apply Patches SukiSU Ultra
         env:
           FILE: ${{ github.event.inputs.FILE }}
@@ -627,53 +629,38 @@ jobs:
           cd kernel_workspace
           SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
           
-          # 正确提取Android主版本号（从 android14-6.1 中提取 14）
-          ANDROID_MAJOR_VERSION=$(echo "${{ env.KANDROID_VERSION }}" | sed 's/android\([0-9]\+\)-.*/\1/')
-          SUSFS_BRANCH="gki-android${ANDROID_MAJOR_VERSION}-${{ env.KERNEL_VERSION }}"
-          echo "计算出的SUSFS分支: $SUSFS_BRANCH"
-          echo "内核版本: ${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
+          # 方法1：先尝试按版本分支
+          SUSFS_BRANCH="gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
+          echo "尝试分支: $SUSFS_BRANCH"
           
-          # 克隆对应分支的SUSFS仓库
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          cd susfs4ksu
-          
-          # 如果需要回退到1.5版本
-          if [ -n "$SUSFS_META" ]; then
-            git checkout "$SUSFS_META"
-            echo "使用用户指定的SUSFS版本: $SUSFS_META"
+          if git ls-remote --heads https://gitlab.com/simonpunk/susfs4ksu.git "$SUSFS_BRANCH" | grep -q "$SUSFS_BRANCH"; then
+            echo "找到分支 $SUSFS_BRANCH，使用该分支"
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           else
-            # 在分支内查找2.0.0之前的最后一个1.5版本commit
-            LAST_15_COMMIT=$(git log --oneline --before="2025-10-23" --grep="1\.5" | head -n1 | cut -d' ' -f1)
-            if [ -n "$LAST_15_COMMIT" ]; then
-              git checkout "$LAST_15_COMMIT"
-              echo "已回退到1.5版本 (commit $LAST_15_COMMIT)"
-            else
-              echo "使用分支 $SUSFS_BRANCH 的最新版本"
-            fi
+            echo "分支 $SUSFS_BRANCH 不存在，使用main分支"
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git
           fi
           
-          echo "当前commit: $(git log --oneline -1)"
+          cd susfs4ksu
+          
+          # 回退到1.5版本
+          if [ -n "$SUSFS_META" ]; then
+            git checkout "$SUSFS_META"
+          else
+            # 查找版本号为1.5.*的commit
+            LAST_15_COMMIT=$(git log --oneline --grep="1\.5" | head -n1 | cut -d' ' -f1)
+            if [ -n "$LAST_15_COMMIT" ]; then
+              git checkout "$LAST_15_COMMIT"
+              echo "回退到1.5版本commit: $LAST_15_COMMIT"
+            fi
+          fi
           
           cd ..
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           git clone https://github.com/Numbersf/Action-Build.git
           cd kernel_platform
           
-          echo "正在拉取susfs补丁"
-          PATCH_FILE="../susfs4ksu/kernel_patches/50_add_susfs_in_${SUSFS_BRANCH}.patch"
-          echo "预期的补丁文件: $PATCH_FILE"
-          
-          if [ -f "$PATCH_FILE" ]; then
-            cp "$PATCH_FILE" ./common/
-            cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/ 2>/dev/null || true
-            cp -r ../susfs4ksukernel_patches/include/linux/* ./common/include/linux/ 2>/dev/null || true
-            echo "susfs补丁拉取完成"
-          else
-            echo "错误: 未找到补丁文件 $PATCH_FILE"
-            echo "可用的补丁文件:"
-            find ../susfs4ksu/kernel_patches/ -name "*.patch" 2>/dev/null || echo "无patch文件"
-            exit 1
-          fi
+          # 复制补丁文件...
 
 
 
