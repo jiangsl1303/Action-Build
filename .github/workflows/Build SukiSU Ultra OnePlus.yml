@@ -627,8 +627,8 @@ jobs:
           cd kernel_workspace
           SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
           
-          # 提取Android主版本号（如14.0.0 → 14）
-          ANDROID_MAJOR_VERSION=$(echo "${{ env.ANDROID_VERSION }}" | cut -d'.' -f1)
+          # 正确提取Android主版本号（从 android14-6.1 中提取 14）
+          ANDROID_MAJOR_VERSION=$(echo "${{ env.KANDROID_VERSION }}" | sed 's/android\([0-9]\+\)-.*/\1/')
           SUSFS_BRANCH="gki-android${ANDROID_MAJOR_VERSION}-${{ env.KERNEL_VERSION }}"
           echo "计算出的SUSFS分支: $SUSFS_BRANCH"
           echo "内核版本: ${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
@@ -666,7 +666,7 @@ jobs:
           if [ -f "$PATCH_FILE" ]; then
             cp "$PATCH_FILE" ./common/
             cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/ 2>/dev/null || true
-            cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/ 2>/dev/null || true
+            cp -r ../susfs4ksukernel_patches/include/linux/* ./common/include/linux/ 2>/dev/null || true
             echo "susfs补丁拉取完成"
           else
             echo "错误: 未找到补丁文件 $PATCH_FILE"
@@ -674,6 +674,8 @@ jobs:
             find ../susfs4ksu/kernel_patches/ -name "*.patch" 2>/dev/null || echo "无patch文件"
             exit 1
           fi
+
+
 
 
 
