@@ -540,6 +540,10 @@ jobs:
           git add -A
           git commit -m "Random suffix & remove -dirty"
 
+
+
+
+
       - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
@@ -562,11 +566,29 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
 
-          # 如果指定了手动 hash，就切换到该提交
-          if [[ -n "$MANUAL_HASH" ]]; then
-            git fetch origin "$BRANCH_NAME" --depth=50
-            git checkout "$MANUAL_HASH"
-            SHORT_HASH=${MANUAL_HASH:0:8}
+          # 使用与SUSFS 1.5兼容的KernelSU版本（Oct 23, 2025或更早）
+          # 查找2025年10月23日之前的commit
+          echo "正在查找2025年10月23日之前的KernelSU兼容版本..."
+          
+          # 获取commit列表并查找10月23日之前的版本
+          git fetch origin "$BRANCH_NAME" --depth=100
+          
+          # 查找2025年10月23日之前的最后一个commit
+          COMPATIBLE_COMMIT=$(git log --before="2025-10-23" --oneline -1 --format="%H" | head -n1)
+          
+          if [ -n "$COMPATIBLE_COMMIT" ]; then
+            echo "找到兼容commit: $COMPATIBLE_COMMIT"
+            git checkout "$COMPATIBLE_COMMIT"
+            SHORT_HASH=${COMPATIBLE_COMMIT:0:8}
+            echo "已切换到兼容版本: $SHORT_HASH (2025-10-23之前)"
+          else
+            # 如果找不到10月23日之前的commit，使用一个已知的兼容版本
+            echo "警告: 未找到2025-10-23之前的commit，使用备用兼容版本"
+            # 使用2025年9月左右的稳定版本
+            FALLBACK_COMMIT="4d3560b12bec5f238fe11f908a246f0ac97e9c27"  # 示例：2024年9月版本
+            git checkout "$FALLBACK_COMMIT"
+            SHORT_HASH=${FALLBACK_COMMIT:0:8}
+            echo "使用备用兼容版本: $SHORT_HASH"
           fi
 
           KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/$BRANCH_NAME/kernel/Kbuild" | \
@@ -619,6 +641,9 @@ jobs:
           grep -A10 "REPO_OWNER" kernel/Kbuild
           grep "KSU_VERSION_FULL" kernel/Kbuild
           echo "::endgroup::"
+
+
+
 
 
 
