@@ -542,7 +542,6 @@ jobs:
 
 
 
-
       - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
@@ -565,57 +564,79 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
 
+          # 保存当前commit，后续可能需要回退
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          echo "原始commit: $CURRENT_COMMIT"
+
           # 使用与SUSFS 1.5兼容的KernelSU版本
           echo "正在查找与SUSFS 1.5兼容的KernelSU版本..."
           
-          # 获取commit列表并查找2025年10月之前的版本
+          # 获取commit列表
           git fetch origin "$BRANCH_NAME" --depth=200
           
-          # 尝试不同的日期范围查找兼容commit
+          # 遍历查找兼容版本（从新到旧）
           COMPATIBLE_COMMIT=""
           
-          # 方法1：查找2025年10月23日之前的commit
-          COMPATIBLE_COMMIT=$(git log --before="2025-10-23" --oneline -1 --format="%H" 2>/dev/null | head -n1)
+          # 测试多个可能的commit，检查Kbuild文件是否存在
+          TEST_COMMITS=("$CURRENT_COMMIT"  # 先测试当前版本
+                        $(git log --before="2025-11-01" --oneline -10 --format="%H" 2>/dev/null)
+                        $(git log --reverse --oneline -5 --format="%H" 2>/dev/null))
           
-          if [ -z "$COMPATIBLE_COMMIT" ]; then
-            # 方法2：如果没有10月23日之前的，放宽到11月之前的
-            echo "未找到2025-10-23之前的commit，尝试查找2025-11-01之前的commit"
-            COMPATIBLE_COMMIT=$(git log --before="2025-11-01" --oneline -1 --format="%H" 2>/dev/null | head -n1)
-          fi
-          
-          if [ -z "$COMPATIBLE_COMMIT" ]; then
-            # 方法3：获取当前分支的最早commit
-            echo "按日期查找失败，使用最早的可获取commit"
-            COMPATIBLE_COMMIT=$(git log --reverse --oneline --format="%H" 2>/dev/null | head -n1)
-          fi
-          
-          if [ -n "$COMPATIBLE_COMMIT" ]; then
-            echo "找到兼容commit: $COMPATIBLE_COMMIT"
-            git checkout "$COMPATIBLE_COMMIT"
-            SHORT_HASH=${COMPATIBLE_COMMIT:0:8}
-            echo "已切换到兼容版本: $SHORT_HASH"
-            echo "Commit信息:"
-            git log --oneline -1
-          else
-            # 最终回退：使用当前分支的特定早期commit（硬编码一个已知存在的）
-            echo "警告: 自动查找失败，使用硬编码的早期commit"
-            # 使用2025年9月1日左右的commit（需要验证存在性）
-            HARDCODED_COMMIT=$(git log --before="2025-09-01" --oneline -1 --format="%H" 2>/dev/null | head -n1)
-            if [ -n "$HARDCODED_COMMIT" ]; then
-              git checkout "$HARDCODED_COMMIT"
-              SHORT_HASH=${HARDCODED_COMMIT:0:8}
-              echo "使用硬编码版本: $SHORT_HASH"
-            else
-              echo "错误: 无法找到任何兼容的KernelSU版本"
-              exit 1
+          for commit in "${TEST_COMMITS[@]}"; do
+            if [ -n "$commit" ]; then
+              echo "测试commit: ${commit:0:8}"
+              git checkout "$commit" >/dev/null 2>&1
+              
+              # 检查Kbuild文件是否存在（尝试不同的可能路径）
+              if [ -f "kernel/Kbuild" ] || [ -f "Kbuild" ] || [ -f "../Kbuild" ]; then
+                COMPATIBLE_COMMIT="$commit"
+                echo "✅ 找到兼容commit: ${commit:0:8} (Kbuild文件存在)"
+                break
+              else
+                echo "❌ commit ${commit:0:8} 缺少Kbuild文件，继续查找..."
+              fi
             fi
+          done
+          
+          if [ -z "$COMPATIBLE_COMMIT" ]; then
+            # 如果自动查找都失败，回退到原始版本
+            echo "警告: 自动查找失败，回退到原始版本"
+            git checkout "$CURRENT_COMMIT"
+            COMPATIBLE_COMMIT="$CURRENT_COMMIT"
           fi
 
-          KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/$BRANCH_NAME/kernel/Kbuild" | \
-            grep -m1 "KSU_VERSION_API :=" | awk -F'= ' '{print $2}' | tr -d '[:space:]')
-          if [[ -z "$KSU_API_VERSION" || "$(printf '%s\nThe' "$KSU_API_VERSION" "3.1.7" | sort -V | head -n1)" != "3.1.7" ]]; then
+          SHORT_HASH=${COMPATIBLE_COMMIT:0:8}
+          echo "最终使用版本: $SHORT_HASH"
+          echo "Commit信息:"
+          git log --oneline -1
+
+          # 确定Kbuild文件路径
+          KBUILD_PATH=""
+          if [ -f "kernel/Kbuild" ]; then
+            KBUILD_PATH="kernel/Kbuild"
+          elif [ -f "Kbuild" ]; then
+            KBUILD_PATH="Kbuild"
+          elif [ -f "../Kbuild" ]; then
+            KBUILD_PATH="../Kbuild"
+          else
+            echo "错误: 无法找到Kbuild文件"
+            exit 1
+          fi
+
+          echo "Kbuild文件路径: $KBUILD_PATH"
+
+          KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/$BRANCH_NAME/kernel/Kbuild" 2>/dev/null | \
+            grep -m1 "KSU_VERSION_API :=" | awk -F'= ' '{print $2}' | tr -d '[:space:]' || echo "")
+          
+          if [[ -z "$KSU_API_VERSION" ]]; then
+            # 如果从远程获取失败，尝试从本地文件获取
+            KSU_API_VERSION=$(grep -m1 "KSU_VERSION_API :=" "$KBUILD_PATH" 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || echo "")
+          fi
+          
+          if [[ -z "$KSU_API_VERSION" ]]; then
             KSU_API_VERSION="3.1.7"
           fi
+          
           echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
 
           GIT_HASH=$(git rev-parse --short HEAD)
@@ -634,33 +655,34 @@ jobs:
           fi
 
           # 清理并写入 Kbuild 版本信息
-          sed -i '/define get_ksu_version_full/,/endef/d' kernel/Kbuild
-          sed -i '/KSU_VERSION_API :=/d' kernel/Kbuild
-          sed -i '/KSU_VERSION_FULL :=/d' kernel/Kbuild
+          sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
+          sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
+          sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
 
           VERSION_DEFINITIONS=$(cat <<EOF
-            define get_ksu_version_full
-            $VERSION_FULL
-            endef
+          define get_ksu_version_full
+          $VERSION_FULL
+          endef
 
-            KSU_VERSION_API := $KSU_API_VERSION
-            KSU_VERSION_FULL := $VERSION_FULL
+          KSU_VERSION_API := $KSU_API_VERSION
+          KSU_VERSION_FULL := $VERSION_FULL
           EOF
           )
 
-          awk -v def="$VERSION_DEFINITIONS" '
+          awk -v def="$VERSION_DEFINITIONS" -v kbuild="$KBUILD_PATH" '
             /REPO_OWNER :=/ {print; print def; inserted=1; next}
             1
             END {if (!inserted) print def}
-          ' kernel/Kbuild > kernel/Kbuild.tmp && mv kernel/Kbuild.tmp kernel/Kbuild
+          ' "$KBUILD_PATH" > "${KBUILD_PATH}.tmp" && mv "${KBUILD_PATH}.tmp" "$KBUILD_PATH"
 
-          KSU_VERSION=$(expr $(git rev-list --count main 2>/dev/null || echo 13000) + 37185)
+          KSU_VERSION=$(expr $(git rev-list --count "$BRANCH_NAME" 2>/dev/null || echo 13000) + 37185)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
           echo "::group::最终 Kbuild 中版本信息及部分调试结果预览"
-          grep -A10 "REPO_OWNER" kernel/Kbuild
-          grep "KSU_VERSION_FULL" kernel/Kbuild
+          grep -A10 "REPO_OWNER" "$KBUILD_PATH" 2>/dev/null || echo "无法读取Kbuild文件"
+          grep "KSU_VERSION_FULL" "$KBUILD_PATH" 2>/dev/null || echo "KSU_VERSION_FULL未找到"
           echo "::endgroup::"
+
 
 
 
