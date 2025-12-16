@@ -397,161 +397,150 @@ jobs:
 
 
 
-      - name: 🔍 查找 SUSFS 1.5 兼容的 KernelSU 版本
+      - name: 🔍 精确锁定兼容版本
         run: |
-          echo "开始分析 SUSFS 1.5 能支持的最高 KernelSU 版本..."
+          echo "开始精确锁定 SUSFS 1.5.12 和兼容的 KernelSU 版本..."
           
           # 清理并创建临时目录
-          rm -rf /tmp/compatibility_test
-          mkdir -p /tmp/compatibility_test
-          cd /tmp/compatibility_test
+          rm -rf /tmp/version_lock
+          mkdir -p /tmp/version_lock
+          cd /tmp/version_lock
           
-          # 克隆 KernelSU 仓库
+          # 克隆 SUSFS 仓库
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}
+          cd susfs4ksu
+          
+          echo "✅ 克隆 SUSFS 仓库完成"
+          echo "目标分支: gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
+          echo ""
+          
+          # 查找当前分支最新的 1.5.12 commit
+          echo "🔍 搜索最新的 SUSFS 1.5.12 commit..."
+          SUSFS_1512_COMMIT=$(git log --grep="1.5.12" --oneline --format="%H %ci %s" | head -1)
+          
+          if [ -n "$SUSFS_1512_COMMIT" ]; then
+            SUSFS_COMMIT_HASH=$(echo "$SUSFS_1512_COMMIT" | cut -d' ' -f1)
+            SUSFS_COMMIT_DATE=$(echo "$SUSFS_1512_COMMIT" | cut -d' ' -f2)
+            SUSFS_COMMIT_MSG=$(echo "$SUSFS_1512_COMMIT" | cut -d' ' -f3-)
+            
+            echo "✅ 找到 SUSFS 1.5.12:"
+            echo "   Commit: $SUSFS_COMMIT_HASH"
+            echo "   日期: $SUSFS_COMMIT_DATE"
+            echo "   信息: $SUSFS_COMMIT_MSG"
+            echo ""
+            
+            # 切换到该 commit 查看详细信息
+            git checkout "$SUSFS_COMMIT_HASH"
+            
+            # 检查 commit 中提到的 KernelSU 版本
+            echo "🔍 分析 SUSFS commit 中的 KernelSU 版本信息..."
+            KSU_REF=$(git log -1 --format=%B | grep -i "kernel.su\|KernelSU" | head -1)
+            if [ -n "$KSU_REF" ]; then
+              echo "   SUSFS 对应的 KernelSU 引用: $KSU_REF"
+            fi
+          else
+            echo "❌ 当前分支未找到 1.5.12 commit，使用最新版本"
+            SUSFS_COMMIT_HASH=$(git rev-parse HEAD)
+            SUSFS_COMMIT_DATE=$(git log -1 --format=%ci | cut -d' ' -f1)
+            echo "   使用最新 commit: $SUSFS_COMMIT_HASH ($SUSFS_COMMIT_DATE)"
+          fi
+          
+          echo ""
+          echo "=========================================="
+          echo "🔍 搜索兼容的 KernelSU commit..."
+          echo "=========================================="
+          
+          cd /tmp/version_lock
           git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git
           cd SukiSU-Ultra
           
-          echo "✅ 仓库克隆完成"
-          echo "正在搜索导致不兼容的 API 变更点..."
+          # 基于 SUSFS 发布日期寻找兼容的 KernelSU
+          echo "SUSFS 1.5.12 发布日期: $SUSFS_COMMIT_DATE"
+          echo ""
+          
+          # 查找 SUSFS 发布前后的 KernelSU commit
+          echo "📅 搜索 SUSFS 发布前后的 KernelSU commit..."
+          
+          # 查找 SUSFS 发布之前的最后一个 commit
+          KSU_BEFORE=$(git log --before="$SUSFS_COMMIT_DATE" --oneline --format="%H %ci %s" | head -1)
+          # 查找 SUSFS 发布之后的第一个 commit  
+          KSU_AFTER=$(git log --after="$SUSFS_COMMIT_DATE" --oneline --format="%H %ci %s" | head -1)
+          
+          echo "SUSFS 1.5.12 发布之前的 KernelSU commit:"
+          echo "   $KSU_BEFORE"
+          echo ""
+          echo "SUSFS 1.5.12 发布之后的 KernelSU commit:"
+          echo "   $KSU_AFTER"
+          echo ""
+          
+          # 推荐最接近的兼容版本
+          echo "💡 兼容性分析:"
+          if [ -n "$KSU_BEFORE" ]; then
+            KSU_RECOMMEND_HASH=$(echo "$KSU_BEFORE" | cut -d' ' -f1)
+            KSU_RECOMMEND_DATE=$(echo "$KSU_BEFORE" | cut -d' ' -f2)
+            echo "✅ 推荐使用 SUSFS 发布之前的 KernelSU commit:"
+            echo "   Commit: $KSU_RECOMMEND_HASH"
+            echo "   日期: $KSU_RECOMMEND_DATE"
+            echo "   信息: $(echo "$KSU_BEFORE" | cut -d' ' -f3-)"
+          elif [ -n "$KSU_AFTER" ]; then
+            KSU_RECOMMEND_HASH=$(echo "$KSU_AFTER" | cut -d' ' -f1)
+            KSU_RECOMMEND_DATE=$(echo "$KSU_AFTER" | cut -d' ' -f2)
+            echo "⚠️  未找到之前的版本，使用之后的 KernelSU commit:"
+            echo "   Commit: $KSU_RECOMMEND_HASH"
+            echo "   日期: $KSU_RECOMMEND_DATE"
+          else
+            echo "❌ 未找到合适的 KernelSU commit"
+            KSU_RECOMMEND_HASH="557e7f81538e57d22d90cff045964dd7fa375206"  # 备用
+          fi
+          
+          echo ""
           echo "=========================================="
+          echo "🎯 最终推荐配置"
+          echo "=========================================="
+          echo ""
+          echo "SUSFS 补丁版本:"
+          echo "   Commit: $SUSFS_COMMIT_HASH"
+          echo "   分支: gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
+          echo ""
+          echo "KernelSU 内核版本:"
+          echo "   Commit: $KSU_RECOMMEND_HASH"
+          echo ""
+          echo "📋 使用方法:"
+          echo "   在 workflow 输入中设置:"
+          echo "   - SUSFS_META: $SUSFS_COMMIT_HASH"
+          echo "   - KSU_META: builtin//$KSU_RECOMMEND_HASH"
+          echo ""
           
-          # 这些是导致编译错误的 API
-          BREAKING_APIS=(
-            "is_manual_su_cmd"
-            "CMD_MANUAL_SU_REQUEST" 
-            "struct manual_su_request"
-            "MANUAL_SU_OP_GENERATE_TOKEN"
-          )
+          # 验证 API 兼容性
+          echo "🔧 验证 API 兼容性..."
+          git checkout "$KSU_RECOMMEND_HASH"
           
-          # 存储结果
-          FIRST_BREAKING_COMMIT=""
-          BREAKING_API_NAME=""
+          # 检查是否存在不兼容的 API
+          BREAKING_APIS=("is_manual_su_cmd" "CMD_MANUAL_SU_REQUEST")
+          API_COMPATIBLE=true
           
           for api in "${BREAKING_APIS[@]}"; do
-            echo "🔍 搜索API: $api"
-            # 使用git log -S 搜索首次引入该API的commit
-            commit=$(git log -S "$api" --oneline --format="%H" 2>/dev/null | tail -1)
-            if [ -n "$commit" ]; then
-              echo "📌 '$api' 首次出现在commit: ${commit:0:8}"
-              if [ -z "$FIRST_BREAKING_COMMIT" ]; then
-                FIRST_BREAKING_COMMIT="$commit"
-                BREAKING_API_NAME="$api"
-              fi
-            else
-              echo "ℹ️  未找到API: $api"
+            if git grep -q "$api" -- "kernel/"; then
+              echo "❌ 检测到不兼容 API: $api"
+              API_COMPATIBLE=false
             fi
-            echo "---"
           done
           
-          echo "=========================================="
-          if [ -n "$FIRST_BREAKING_COMMIT" ]; then
-            echo "🎯 分析结果:"
-            echo "   首个不兼容API '$BREAKING_API_NAME' 出现在: ${FIRST_BREAKING_COMMIT:0:8}"
-            echo ""
-            echo "💡 推荐使用前一个commit（最后一个兼容版本）:"
-            git checkout "${FIRST_BREAKING_COMMIT}^"  # 切换到前一个commit
-            RECOMMENDED_COMMIT=$(git rev-parse HEAD)
-            echo "   Commit: ${RECOMMENDED_COMMIT:0:8}"
-            echo "   信息: $(git log --oneline -1)"
-            echo "   日期: $(git log -1 --format=%ci)"
-            echo ""
-            echo "📋 使用方法:"
-            echo "   在KSU_META中输入: builtin//${RECOMMENDED_COMMIT}"
+          if [ "$API_COMPATIBLE" = true ]; then
+            echo "✅ API 兼容性检查通过"
           else
-            echo "❓ 未找到不兼容API，可能版本较旧或其他问题"
-            echo "💡 建议使用已知可用的commit: 557e7f81538e57d22d90cff045964dd7fa375206"
-          fi
-
-
-
-
-
-      - name: 🔄 检测 SUSFS 版本并行开发情况
-        run: |
-          echo "检测 SUSFS 1.5 和 2.0 是否并行开发..."
-          
-          rm -rf /tmp/susfs_parallel
-          mkdir -p /tmp/susfs_parallel
-          cd /tmp/susfs_parallel
-          
-          # 克隆仓库并获取所有分支
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git --bare
-          cd susfs4ksu.git
-          
-          echo "✅ 仓库克隆完成"
-          echo ""
-          
-          # 查看所有分支
-          echo "🌿 所有分支列表:"
-          git branch -a
-          echo ""
-          
-          # 切换到可工作目录
-          cd ..
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          cd susfs4ksu
-          
-          echo "🔍 分析版本发布时间线..."
-          echo ""
-          
-          # 查找所有版本标签和对应的日期
-          echo "🏷️  版本标签时间线:"
-          git log --simplify-by-decoration --pretty=format:"%h %ci %d" --all | grep "tag:" | head -20
-          echo ""
-          
-          # 查找 1.5.x 系列的 commit
-          echo "🔎 1.5.x 系列 commit:"
-          git log --grep="1\.5" --oneline --format="%H %ci %s" | head -10
-          echo ""
-          
-          # 查找 2.0.x 系列的 commit  
-          echo "🔎 2.0.x 系列 commit:"
-          git log --grep="2\.0" --oneline --format="%H %ci %s" | head -10
-          echo ""
-          
-          # 检查是否有维护分支
-          echo "🔄 检查维护分支:"
-          for branch in $(git branch -r | grep -E "1\.5|maintenance|stable"); do
-            echo "检查分支: $branch"
-            git log --oneline -3 "$branch" 2>/dev/null | head -1 || echo "无法访问"
-          done
-          echo ""
-          
-          # 时间线重叠分析
-          echo "📊 时间线重叠分析:"
-          
-          # 获取 1.5 系列的最后 commit 日期
-          LAST_15_DATE=$(git log --grep="1\.5" --format="%ci" | head -1 | cut -d' ' -f1)
-          # 获取 2.0 系列的第一个 commit 日期  
-          FIRST_20_DATE=$(git log --grep="2\.0" --format="%ci" | tail -1 | cut -d' ' -f1)
-          
-          echo "1.5 系列最后活动: $LAST_15_DATE"
-          echo "2.0 系列开始时间: $FIRST_20_DATE"
-          echo ""
-          
-          if [[ "$LAST_15_DATE" > "$FIRST_20_DATE" ]] || [[ "$LAST_15_DATE" == "$FIRST_20_DATE" ]]; then
-            echo "✅ 检测到并行开发！1.5 和 2.0 有时间重叠"
-            echo "可能情况:"
-            echo "1. 🔄 1.5 是稳定版分支，2.0 是开发版分支"
-            echo "2. 🏷️  不同版本针对不同内核版本"
-            echo "3. 🔧 功能分叉，各自维护"
-          else
-            echo "📅 顺序开发模式: 2.0 在 1.5 之后"
+            echo "⚠️  API 兼容性警告，可能需要调整版本"
           fi
           
-          # 检查不同分支的内容差异
-          echo ""
-          echo "🔬 分支内容差异分析:"
-          
-          # 尝试比较 main 分支和可能的 1.5 分支
-          if git show-ref --verify --quiet refs/remotes/origin/1.5; then
-            echo "发现 1.5 分支，比较差异..."
-            git diff origin/main origin/1.5 --stat | head -10
-          else
-            echo "未发现明确的 1.5 维护分支"
-          fi
-          
+          # 清理
           cd /
-          rm -rf /tmp/susfs_parallel
+          rm -rf /tmp/version_lock
+
+
+
+
+
+ 
 
 
 
