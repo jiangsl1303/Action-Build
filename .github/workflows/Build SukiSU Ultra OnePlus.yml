@@ -635,6 +635,65 @@ jobs:
           # 清理并写入 Kbuild 版本信息
           sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
           sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
+      - name: Add SukiSU Ultra
+        run: |
+          cd kernel_workspace/kernel_platform
+
+          KSU_META: "builtin/Numbersf/2bc727bfbd00535f6bcdb6c6992b3c1165dcc046"
+
+
+          # 必须包含两个分隔符（至少三个字段）
+          if [[ "$(grep -o '/' <<< "$KSU_META" | wc -l)" -lt 2 ]]; then
+            echo "错误: KSU_META 参数缺少必要的分隔符 '/'，格式应为: 分支名/自定义标识(可省略)/提交hash(可省略)"
+            exit 10
+          fi
+
+          # 解析字段：分支 / 自定义标识 / 手动 hash
+          IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
+
+          echo "分支名: $BRANCH_NAME"
+          [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
+          [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
+
+          # 使用setup.sh脚本（这是原始的有效方式）
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s "$BRANCH_NAME"
+          cd ./KernelSU
+
+          # 🔥 关键：只有在用户明确指定hash时才切换版本
+          if [ -n "$MANUAL_HASH" ]; then
+            echo "切换到用户指定的commit: $MANUAL_HASH"
+            git checkout "$MANUAL_HASH"
+          else
+            echo "使用分支 $BRANCH_NAME 的最新版本"
+          fi
+
+          # 标准的版本信息处理（不强制修改）
+          KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/$BRANCH_NAME/kernel/Kbuild" | \
+            grep -m1 "KSU_VERSION_API :=" | awk -F'= ' '{print $2}' | tr -d '[:space:]')
+          if [[ -z "$KSU_API_VERSION" || "$(printf '%s\nThe' "$KSU_API_VERSION" "3.1.7" | sort -V | head -n1)" != "3.1.7" ]]; then
+            KSU_API_VERSION="3.1.7"
+          fi
+          echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
+
+          GIT_HASH=$(git rev-parse --short HEAD)
+          echo "GIT_HASH=$GIT_HASH"
+
+          # 组装版本号
+          if [[ -n "$MANUAL_HASH" ]]; then
+            USE_HASH="$MANUAL_HASH"
+          else
+            USE_HASH="$GIT_HASH"
+          fi
+          if [[ -z "$CUSTOM_TAG" ]]; then
+            VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$BRANCH_NAME"
+          else
+            VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$BRANCH_NAME[$USE_HASH]"
+          fi
+
+          # 标准Kbuild版本信息写入
+          KBUILD_PATH="kernel/Kbuild"
+          sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
+          sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
           sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
 
           VERSION_DEFINITIONS=$(cat <<EOF
@@ -647,27 +706,18 @@ jobs:
           EOF
           )
 
-          # 插入版本定义到Kbuild
-          if grep -q "REPO_OWNER :=" "$KBUILD_PATH"; then
-            awk -v def="$VERSION_DEFINITIONS" '
-              /REPO_OWNER :=/ {print; print def; inserted=1; next}
-              1
-              END {if (!inserted) print def}
-            ' "$KBUILD_PATH" > "${KBUILD_PATH}.tmp" && mv "${KBUILD_PATH}.tmp" "$KBUILD_PATH"
-          else
-            # 如果REPO_OWNER不存在，直接在文件开头添加
-            echo "$VERSION_DEFINITIONS" > "$KBUILD_PATH"
-          fi
+          awk -v def="$VERSION_DEFINITIONS" '
+            /REPO_OWNER :=/ {print; print def; inserted=1; next}
+            1
+            END {if (!inserted) print def}
+          ' "$KBUILD_PATH" > "${KBUILD_PATH}.tmp" && mv "${KBUILD_PATH}.tmp" "$KBUILD_PATH"
 
           KSU_VERSION=$(expr $(git rev-list --count "$BRANCH_NAME" 2>/dev/null || echo 13000) + 37185)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
-          echo "::group::最终 Kbuild 中版本信息"
-          cat "$KBUILD_PATH"
-          echo "::endgroup::"
-
-          echo "::group::KernelSU目录结构"
-          find . -type f -name "*.c" -o -name "*.h" -o -name "Kbuild" | head -20
+          echo "::group::最终 Kbuild 中版本信息及部分调试结果预览"
+          grep -A10 "REPO_OWNER" "$KBUILD_PATH"
+          grep "KSU_VERSION_FULL" "$KBUILD_PATH"
           echo "::endgroup::"
 
 
