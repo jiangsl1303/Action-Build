@@ -794,7 +794,6 @@ jobs:
 
 
 
-
       - name: Apply Patches SukiSU Ultra
         env:
           FILE: ${{ github.event.inputs.FILE }}
@@ -802,40 +801,66 @@ jobs:
           cd kernel_workspace
           SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
           
-          # 方法1：先尝试按版本分支
-          SUSFS_BRANCH="gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
-          echo "尝试分支: $SUSFS_BRANCH"
-          
-          if git ls-remote --heads https://gitlab.com/simonpunk/susfs4ksu.git "$SUSFS_BRANCH" | grep -q "$SUSFS_BRANCH"; then
-            echo "找到分支 $SUSFS_BRANCH，使用该分支"
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          else
-            echo "分支 $SUSFS_BRANCH 不存在，使用main分支"
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git
-          fi
-          
+          # 克隆SUSFS仓库
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git
           cd susfs4ksu
           
-          # 回退到1.5版本
+          # 如果用户指定了版本，直接使用
           if [ -n "$SUSFS_META" ]; then
             git checkout "$SUSFS_META"
+            echo "使用用户指定的SUSFS版本: $SUSFS_META"
           else
-            # 查找版本号为1.5.*的commit
-            LAST_15_COMMIT=$(git log --oneline --grep="1\.5" | head -n1 | cut -d' ' -f1)
-            if [ -n "$LAST_15_COMMIT" ]; then
+            # 查找最早的2.0.0版本commit
+            FIRST_20_COMMIT=$(git log --oneline --grep="2.0.0" | tail -n1 | cut -d' ' -f1)
+            
+            if [ -n "$FIRST_20_COMMIT" ]; then
+              # 获取2.0.0之前的一个commit（应该是1.5系列的最后一个版本）
+              LAST_15_COMMIT=$(git rev-parse "${FIRST_20_COMMIT}^")
               git checkout "$LAST_15_COMMIT"
-              echo "回退到1.5版本commit: $LAST_15_COMMIT"
+              echo "已回退到2.0.0之前的最后1.5版本"
+              echo "2.0.0版本commit: $FIRST_20_COMMIT"
+              echo "回退到commit: $LAST_15_COMMIT"
+            else
+              echo "警告: 未找到2.0.0版本commit，使用最新版本"
             fi
           fi
+          
+          echo "当前commit信息:"
+          git log --oneline -1
           
           cd ..
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           git clone https://github.com/Numbersf/Action-Build.git
           cd kernel_platform
           
-          # 复制补丁文件...
-
-
+          echo "正在查找可用的susfs补丁..."
+          # 尝试精确匹配的补丁文件
+          EXPECTED_PATCH="../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch"
+          
+          if [ -f "$EXPECTED_PATCH" ]; then
+            echo "找到精确匹配的补丁文件: $EXPECTED_PATCH"
+            cp "$EXPECTED_PATCH" ./common/
+            cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/ 2>/dev/null || true
+            cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/ 2>/dev/null || true
+          else
+            echo "未找到精确匹配的补丁，查找最接近的版本..."
+            # 查找任何可用的补丁文件
+            AVAILABLE_PATCHES=$(find ../susfs quatro/ -name "50_add_susfs_in_gki-*.patch" 2>/dev/null)
+            if [ -n "$AVAILABLE_PATCHES" ]; then
+              echo "可用的补丁文件:"
+              echo "$AVAILABLE_PATCHES"
+              # 使用第一个找到的补丁
+              FIRST_PATCH=$(echo "$AVAILABLE_PATCHES" | head -n1)
+              echo "使用补丁: $FIRST_PATCH"
+              cp "$FIRST_PATCH" ./common/
+              # 尝试复制其他文件
+              cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/ 2>/dev/null || true
+              cp -r ../susfs quatro/ 2>/dev/null || true
+            else
+              echo "错误: 未找到任何susfs补丁文件"
+              exit 1
+            fi
+          fi
 
 
 
