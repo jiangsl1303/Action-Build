@@ -394,6 +394,44 @@ jobs:
             rm -f "$dir/android/abi_gki_protected_exports_"* 2>/dev/null || echo "No protected exports in $dir"
           done
 
+
+
+
+
+
+      - name: 🔍 查找 SUSFS 1.5 兼容的 KernelSU 版本
+        run: |
+          echo "开始分析 SUSFS 1.5 能支持的最高 KernelSU 版本..."
+          
+          # 创建临时目录
+          mkdir -p /tmp/compatibility_test
+          cd /tmp/compatibility_test
+          
+          # 克隆 KernelSU 仓库
+          git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git
+          cd SukiSU-Ultra
+          
+          echo "✅ 仓库克隆完成"
+          echo "正在搜索导致不兼容的 API 变更点..."
+          echo "=========================================="
+          
+          # 这些是导致编译错误的 API
+          BREAKING_APIS=(
+            "is_manual_su_cmd"
+            "CMD_MANUAL_SU_REQUEST" 
+            "struct manual_su_request"
+            "MANUAL_SU_OP_GENERATE_TOKEN"
+          )
+          
+          # 存储结果
+          FIRST_BREAKING_COMMIT=""
+
+
+
+
+
+
+
       - name: Kernel Version Handling
         run: |
           cd kernel_workspace/kernel_platform
