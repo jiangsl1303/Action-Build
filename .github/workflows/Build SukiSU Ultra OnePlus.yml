@@ -464,6 +464,128 @@ jobs:
 
 
 
+      - name: 🔍 分析 SUSFS 版本时间线差异
+        run: |
+          echo "开始分析 SUSFS 版本时间线差异..."
+          
+          # 清理并创建临时目录
+          rm -rf /tmp/susfs_analysis
+          mkdir -p /tmp/susfs_analysis
+          cd /tmp/susfs_analysis
+          
+          # 克隆 SUSFS 仓库
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git
+          cd susfs4ksu
+          
+          echo "✅ SUSFS 仓库克隆完成"
+          echo "=========================================="
+          echo "📅 SUSFS 版本时间线分析"
+          echo "=========================================="
+          
+          # 搜索所有版本相关的 commit
+          echo "🔍 搜索版本变更 commit..."
+          echo ""
+          
+          # 2.0.0 相关 commit
+          echo "🎯 2.0.0 版本相关 commit:"
+          git log --grep="2.0.0" --oneline --format="%H %ci %s" | head -10
+          echo ""
+          
+          # 1.5.x 相关 commit
+          echo "🎯 1.5.x 版本相关 commit:"
+          git log --grep="1.5" --oneline --format="%H %ci %s" | head -10
+          echo ""
+          
+          # Rebase 到官方 KernelSU 的 commit
+          echo "🎯 Rebase 到官方 KernelSU 的 commit:"
+          git log --grep="Rebase susfs patches" --oneline --format="%H %ci %s" | head -10
+          echo ""
+          
+          # 关键 commit 详细信息
+          echo "=========================================="
+          echo "📊 关键 commit 详细分析"
+          echo "=========================================="
+          
+          # 查找最新的 2.0.0 commit
+          LATEST_20_COMMIT=$(git log --grep="2.0.0" --oneline --format="%H" | head -1)
+          if [ -n "$LATEST_20_COMMIT" ]; then
+            echo "🔍 最新的 2.0.0 commit:"
+            git show --stat "$LATEST_20_COMMIT" | head -20
+            echo ""
+          fi
+          
+          # 查找最新的 1.5 commit
+          LATEST_15_COMMIT=$(git log --grep="1.5" --oneline --format="%H" | head -1)
+          if [ -n "$LATEST_15_COMMIT" ]; then
+            echo "🔍 最新的 1.5 commit:"
+            git show --stat "$LATEST_15_COMMIT" | head -20
+            echo ""
+          fi
+          
+          # 查找 Rebase commit
+          REBASE_COMMIT=$(git log --grep="Rebase susfs patches" --oneline --format="%H" | head -1)
+          if [ -n "$REBASE_COMMIT" ]; then
+            echo "🔍 Rebase commit 详细信息:"
+            git show "$REBASE_COMMIT" --stat
+            echo ""
+            
+            # 分析这个 commit 的变更内容
+            echo "📋 Rebase commit 的变更文件:"
+            git show --name-only "$REBASE_COMMIT"
+            echo ""
+            
+            # 查看具体差异
+            echo "🔧 Rebase commit 的主要变更:"
+            git show "$REBASE_COMMIT" --stat
+            echo ""
+          fi
+          
+          # 时间线对比分析
+          echo "=========================================="
+          echo "⏰ 时间线对比分析"
+          echo "=========================================="
+          
+          # KernelSU 不兼容 API 引入时间
+          echo "💡 KernelSU 不兼容 API 引入时间: 2025-10-05 (commit 36617bf0)"
+          
+          # SUSFS 2.0.0 发布时间
+          if [ -n "$REBASE_COMMIT" ]; then
+            REBASE_DATE=$(git log -1 --format="%ci" "$REBASE_COMMIT" | cut -d' ' -f1)
+            echo "💡 SUSFS Rebase 到官方 KernelSU 时间: $REBASE_DATE"
+          fi
+          
+          if [ -n "$LATEST_15_COMMIT" ]; then
+            LATEST_15_DATE=$(git log -1 --format="%ci" "$LATEST_15_COMMIT" | cut -d' ' -f1)
+            echo "💡 SUSFS 最新 1.5 commit 时间: $LATEST_15_DATE"
+          fi
+          
+          # 分析差异原因
+          echo ""
+          echo "=========================================="
+          echo "🔮 差异原因分析"
+          echo "=========================================="
+          echo ""
+          echo "可能的原因:"
+          echo "1. 📅 **发布时间差**: SUSFS 2.0.0 在 KernelSU API 变更后才发布"
+          echo "2. 🔄 **开发分支差异**: SUSFS 可能基于较旧的 KernelSU 分支开发"
+          echo "3. 🏷️  **版本标签策略**: SUSFS 的版本号可能不反映实际的 KernelSU 基础版本"
+          echo "4. 🔧 **兼容性处理**: SUSFS 2.0.0 可能已经适配了新 API，但 1.5 没有"
+          echo ""
+          
+          # 建议
+          echo "=========================================="
+          echo "💡 建议"
+          echo "=========================================="
+          echo ""
+          echo "基于分析，建议:"
+          echo "✅ 使用 SUSFS 1.5 + KernelSU commit 5b490540 (2025-10-05)"
+          echo "❌ 或者考虑升级到 SUSFS 2.0.0 + 对应的新版 KernelSU"
+          echo ""
+          echo "如果要使用新版，需要验证 SUSFS 2.0.0 是否已适配新 API"
+          
+          # 清理
+          cd /
+          rm -rf /tmp/susfs_analysis
 
 
 
