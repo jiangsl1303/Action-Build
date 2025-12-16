@@ -545,16 +545,15 @@ jobs:
 
 
 
-
-
       - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
 
+          # 修复：使用正确的变量引用方式
           KSU_META="${{ github.event.inputs.KSU_META }}"
 
           # 必须包含两个分隔符（至少三个字段）
-          if [[ "$(grep -o '/' <<< "$KSU_META" | wc -l)" -lt 2 ]]; then
+          if [ $(echo "$KSU_META" | tr -cd '/' | wc -c) -lt 2 ]; then
             echo "错误: KSU_META 参数缺少必要的分隔符 '/'，格式应为: 分支名/自定义标识(可省略)/提交hash(可省略)"
             exit 10
           fi
@@ -563,70 +562,50 @@ jobs:
           IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
 
           echo "分支名: $BRANCH_NAME"
-          [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
-          [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
+          if [ -n "$CUSTOM_TAG" ]; then
+            echo "自定义版本标识: $CUSTOM_TAG"
+          else
+            echo "自定义版本标识: 未启用"
+          fi
+          if [ -n "$MANUAL_HASH" ]; then
+            echo "手动指定 hash: $MANUAL_HASH"
+          else
+            echo "手动指定 hash: 未启用"
+          fi
 
+          # 使用setup.sh脚本
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
 
-          # 强制使用指定的兼容commit
-          SPECIFIED_COMMIT="2bc727bfbd00535f6bcdb6c6992b3c1165dcc046"
-          echo "强制使用指定的KernelSU commit: $SPECIFIED_COMMIT"
-          
-          # 检查commit是否存在
-          if git cat-file -e "$SPECIFIED_COMMIT^{commit}" 2>/dev/null; then
-            git checkout "$SPECIFIED_COMMIT"
-            echo "✅ 成功切换到指定commit"
+          # 只有在用户明确指定hash时才切换版本
+          if [ -n "$MANUAL_HASH" ]; then
+            echo "切换到用户指定的commit: $MANUAL_HASH"
+            git checkout "$MANUAL_HASH"
           else
-            # 如果本地没有，从远程获取
-            echo "本地不存在该commit，从远程获取..."
-            git fetch origin "$BRANCH_NAME" --depth=200
-            if git cat-file -e "$SPECIFIED_COMMIT^{commit}" 2>/dev/null; then
-              git checkout "$SPECIFIED_COMMIT"
-              echo "✅ 成功切换到指定commit"
-            else
-              echo "❌ 错误: 指定的commit $SPECIFIED_COMMIT 在仓库中不存在"
-              echo "可用的最近commit:"
-              git log --oneline -10
-              exit 1
-            fi
+            echo "使用分支 $BRANCH_NAME 的最新版本"
           fi
 
-          SHORT_HASH=${SPECIFIED_COMMIT:0:8}
-          echo "使用版本: $SHORT_HASH"
-          echo "Commit信息:"
-          git log --oneline -1
-
-          # 确定Kbuild文件路径
-          KBUILD_PATH=""
-          if [ -f "kernel/Kbuild" ]; then
-            KBUILD_PATH="kernel/Kbuild"
-          elif [ -f "Kbuild" ]; then
-            KBUILD_PATH="Kbuild"
-          else
-            echo "警告: Kbuild文件不存在，创建基本版本文件"
-            KBUILD_PATH="kernel/Kbuild"
-            mkdir -p kernel
-            touch "$KBUILD_PATH"
+          # 标准的版本信息处理
+          KBUILD_PATH="kernel/Kbuild"
+          if [ ! -f "$KBUILD_PATH" ]; then
+            echo "错误: Kbuild文件不存在"
+            exit 1
           fi
 
-          # 获取或设置API版本
-          KSU_API_VERSION=$(grep -m1 "KSU_VERSION_API :=" "$KBUILD_PATH" 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || echo "")
-          if [[ -z "$KSU_API_VERSION" ]]; then
-            KSU_API_VERSION="3.1.7"  # 默认值
-          fi
+          KSU_API_VERSION=$(grep -m1 "KSU_VERSION_API :=" "$KBUILD_PATH" | awk -F'= ' '{print $2}' | tr -d '[:space:]' || echo "3.1.7")
           echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
 
           GIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_HASH=$GIT_HASH"
 
           # 组装版本号
-          if [[ -n "$MANUAL_HASH" ]]; then
-            USE_HASH="$SHORT_HASH"
+          if [ -n "$MANUAL_HASH" ]; then
+            USE_HASH="${MANUAL_HASH:0:8}"
           else
             USE_HASH="$GIT_HASH"
           fi
-          if [[ -z "$CUSTOM_TAG" ]]; then
+          
+          if [ -z "$CUSTOM_TAG" ]; then
             VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$BRANCH_NAME"
           else
             VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$BRANCH_NAME[$USE_HASH]"
@@ -635,77 +614,19 @@ jobs:
           # 清理并写入 Kbuild 版本信息
           sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
           sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
-      - name: Add SukiSU Ultra
-        run: |
-          cd kernel_workspace/kernel_platform
-
-          KSU_META: "builtin/Numbersf/2bc727bfbd00535f6bcdb6c6992b3c1165dcc046"
-
-
-          # 必须包含两个分隔符（至少三个字段）
-          if [[ "$(grep -o '/' <<< "$KSU_META" | wc -l)" -lt 2 ]]; then
-            echo "错误: KSU_META 参数缺少必要的分隔符 '/'，格式应为: 分支名/自定义标识(可省略)/提交hash(可省略)"
-            exit 10
-          fi
-
-          # 解析字段：分支 / 自定义标识 / 手动 hash
-          IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
-
-          echo "分支名: $BRANCH_NAME"
-          [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
-          [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
-
-          # 使用setup.sh脚本（这是原始的有效方式）
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s "$BRANCH_NAME"
-          cd ./KernelSU
-
-          # 🔥 关键：只有在用户明确指定hash时才切换版本
-          if [ -n "$MANUAL_HASH" ]; then
-            echo "切换到用户指定的commit: $MANUAL_HASH"
-            git checkout "$MANUAL_HASH"
-          else
-            echo "使用分支 $BRANCH_NAME 的最新版本"
-          fi
-
-          # 标准的版本信息处理（不强制修改）
-          KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/$BRANCH_NAME/kernel/Kbuild" | \
-            grep -m1 "KSU_VERSION_API :=" | awk -F'= ' '{print $2}' | tr -d '[:space:]')
-          if [[ -z "$KSU_API_VERSION" || "$(printf '%s\nThe' "$KSU_API_VERSION" "3.1.7" | sort -V | head -n1)" != "3.1.7" ]]; then
-            KSU_API_VERSION="3.1.7"
-          fi
-          echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
-
-          GIT_HASH=$(git rev-parse --short HEAD)
-          echo "GIT_HASH=$GIT_HASH"
-
-          # 组装版本号
-          if [[ -n "$MANUAL_HASH" ]]; then
-            USE_HASH="$MANUAL_HASH"
-          else
-            USE_HASH="$GIT_HASH"
-          fi
-          if [[ -z "$CUSTOM_TAG" ]]; then
-            VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$BRANCH_NAME"
-          else
-            VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$BRANCH_NAME[$USE_HASH]"
-          fi
-
-          # 标准Kbuild版本信息写入
-          KBUILD_PATH="kernel/Kbuild"
-          sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
-          sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
           sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
 
           VERSION_DEFINITIONS=$(cat <<EOF
           define get_ksu_version_full
           $VERSION_FULL
           endef
-
+ 
           KSU_VERSION_API := $KSU_API_VERSION
           KSU_VERSION_FULL := $VERSION_FULL
           EOF
           )
 
+          # 插入版本定义到Kbuild
           awk -v def="$VERSION_DEFINITIONS" '
             /REPO_OWNER :=/ {print; print def; inserted=1; next}
             1
@@ -715,9 +636,8 @@ jobs:
           KSU_VERSION=$(expr $(git rev-list --count "$BRANCH_NAME" 2>/dev/null || echo 13000) + 37185)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
-          echo "::group::最终 Kbuild 中版本信息及部分调试结果预览"
-          grep -A10 "REPO_OWNER" "$KBUILD_PATH"
-          grep "KSU_VERSION_FULL" "$KBUILD_PATH"
+          echo "::group::最终 Kbuild 中版本信息"
+          cat "$KBUILD_PATH"
           echo "::endgroup::"
 
 
