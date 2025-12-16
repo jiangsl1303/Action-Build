@@ -672,10 +672,6 @@ jobs:
 
 
 
-
-
-
-
       - name: Apply Patches SukiSU Ultra
         env:
           FILE: ${{ github.event.inputs.FILE }}
@@ -743,8 +739,6 @@ jobs:
               exit 1
             fi
           fi
-
-
 
 
 
