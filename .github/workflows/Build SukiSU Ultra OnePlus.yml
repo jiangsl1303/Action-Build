@@ -550,7 +550,8 @@ jobs:
           cd kernel_workspace/kernel_platform
 
           # 修复：使用正确的变量引用方式
-          KSU_META="${{ github.event.inputs.KSU_META }}"
+          KSU_META: "builtin//2bc727bfbd00535f6bcdb6c6992b3c1165dcc046"
+
 
           # 必须包含两个分隔符（至少三个字段）
           if [ $(echo "$KSU_META" | tr -cd '/' | wc -c) -lt 2 ]; then
