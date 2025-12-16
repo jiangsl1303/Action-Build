@@ -277,10 +277,7 @@ jobs:
           # 传递组合信息
           echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPU"
           
-          # 使用 outputs 而不是环境变量
-          echo "kandroid_version=$KANDROID_VERSION" >> $GITHUB_OUTPUT
-          echo "kernel_version=$KERNEL_VERSION" >> $GITHUB_OUTPUT
-          echo "cpu=$CPU" >> $GITHUB_OUTPUT
+          
           
 
 
@@ -411,18 +408,22 @@ jobs:
       - name: 🔍 精确锁定兼容版本 (修复版)
         run: |
           echo "开始精确锁定 SUSFS 1.5.12 和兼容的 KernelSU 版本..."
+
+          
+          echo "=== 环境变量列表 ==="
+          env | sort | grep -E "(KERNEL|ANDROID|VERSION)" || echo "未找到相关环境变量"
+          echo "=== GITHUB_ENV 内容 ==="
+          cat $GITHUB_ENV 2>/dev/null || echo "GITHUB_ENV 文件不存在"
+          echo "=== 工作流输入 ==="
+          echo "FILE: ${{ github.event.inputs.FILE }}"
+
+
           
           # 清理并创建临时目录
           rm -rf /tmp/version_lock
           mkdir -p /tmp/version_lock
           cd /tmp/version_lock
           
-          KANDROID_VERSION="${{ steps.extract_info.outputs.kandroid_version }}"
-          KERNEL_VERSION="${{ steps.extract_info.outputs.kernel_version }}"
-          
-          echo "KANDROID_VERSION: $KANDROID_VERSION"
-          echo "KERNEL_VERSION: $KERNEL_VERSION"
-          # ... 其余代码
 
           # 构建正确的分支名称
           SUSFS_BRANCH="gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
