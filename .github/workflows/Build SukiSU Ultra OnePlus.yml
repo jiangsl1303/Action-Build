@@ -275,7 +275,7 @@ jobs:
             echo "❌ README.md 下载失败或为空"
           fi
           # 传递组合信息
-          echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPU
+          echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPU"
           
           # 使用 outputs 而不是环境变量
           echo "kandroid_version=$KANDROID_VERSION" >> $GITHUB_OUTPUT
