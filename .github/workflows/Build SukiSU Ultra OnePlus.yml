@@ -570,7 +570,7 @@ jobs:
           cd ./KernelSU
 
           # 强制使用指定的兼容commit
-          SPECIFIED_COMMIT="01ac06c3fd43725ee5e95842eb6cea6477ba9f8e"
+          SPECIFIED_COMMIT="2bc727bfbd00535f6bcdb6c6992b3c1165dcc046"
           echo "强制使用指定的KernelSU commit: $SPECIFIED_COMMIT"
           
           # 检查commit是否存在
