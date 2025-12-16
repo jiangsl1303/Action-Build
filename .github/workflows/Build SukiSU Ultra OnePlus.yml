@@ -397,41 +397,12 @@ jobs:
 
 
 
-
-
       - name: 🔍 查找 SUSFS 1.5 兼容的 KernelSU 版本
         run: |
           echo "开始分析 SUSFS 1.5 能支持的最高 KernelSU 版本..."
           
-          # 创建临时目录
-          mkdir -p /tmp/compatibility_test
-          cd /tmp/compatibility_test
-          
-          # 克隆 KernelSU 仓库
-          git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git
-          cd SukiSU-Ultra
-          
-          echo "✅ 仓库克隆完成"
-          echo "正在搜索导致不兼容的 API 变更点..."
-          echo "=========================================="
-          
-          # 这些是导致编译错误的 API
-          BREAKING_APIS=(
-            "is_manual_su_cmd"
-            "CMD_MANUAL_SU_REQUEST" 
-            "struct manual_su_request"
-            "MANUAL_SU_OP_GENERATE_TOKEN"
-          )
-          
-          # 存储结果
-          FIRST_BREAKING_COMMIT=""
-
-
-      - name: 🔍 查找 SUSFS 1.5 兼容的 KernelSU 版本
-        run: |
-          echo "开始分析 SUSFS 1.5 能支持的最高 KernelSU 版本..."
-          
-          # 创建临时目录
+          # 清理并创建临时目录
+          rm -rf /tmp/compatibility_test
           mkdir -p /tmp/compatibility_test
           cd /tmp/compatibility_test
           
@@ -458,7 +429,7 @@ jobs:
           for api in "${BREAKING_APIS[@]}"; do
             echo "🔍 搜索API: $api"
             # 使用git log -S 搜索首次引入该API的commit
-            commit=$(git log -S "$api" --oneline --format="%H" | tail -1)
+            commit=$(git log -S "$api" --oneline --format="%H" 2>/dev/null | tail -1)
             if [ -n "$commit" ]; then
               echo "📌 '$api' 首次出现在commit: ${commit:0:8}"
               if [ -z "$FIRST_BREAKING_COMMIT" ]; then
@@ -484,15 +455,14 @@ jobs:
             echo "   日期: $(git log -1 --format=%ci)"
             echo ""
             echo "📋 使用方法:"
-            echo "   在KSU_META中输入: builtin/Numbersf/${RECOMMENDED_COMMIT}"
+            echo "   在KSU_META中输入: builtin//${RECOMMENDED_COMMIT}"
           else
             echo "❓ 未找到不兼容API，可能版本较旧或其他问题"
             echo "💡 建议使用已知可用的commit: 557e7f81538e57d22d90cff045964dd7fa375206"
           fi
-          
-          # 清理临时文件
-          cd /
-          rm -rf /tmp/compatibility_test
+
+
+
 
 
 
