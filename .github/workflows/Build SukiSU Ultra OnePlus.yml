@@ -287,6 +287,15 @@ jobs:
           echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
 
 
+      - name: Extract Manifest Info
+        id: extract_info
+        env:
+          FILE: ${{ github.event.inputs.FILE }}
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          # ... 您现有的代码 ...
+          
           # 解析 revision 字符串
           REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
           echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
@@ -301,25 +310,48 @@ jobs:
             # 获取短位 Android 版本号
             echo "ANDROID_SHORT_VERSION=${ANDROID_VERSION%%.*}" >> $GITHUB_ENV
             
-            # 🔥 新增：提取内核版本信息
-            # 从 revision 中提取内核版本（通常格式为 androidXX-kernelversion）
-            if [[ "$REVISION" =~ android([0-9]+)-([0-9]+\.[0-9]+) ]]; then
-              KANDROID_VERSION="android${BASH_REMATCH[1]}"
-              KERNEL_VERSION="${BASH_REMATCH[2]}"
-              echo "✅ 从revision提取: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
-            else
-              # 备用方案：基于Android版本推断内核版本
-              ANDROID_SHORT="${ANDROID_VERSION%%.*}"
-              case "$ANDROID_SHORT" in
-                16) KANDROID_VERSION="android16"; KERNEL_VERSION="6.1" ;;
-                15) KANDROID_VERSION="android15"; KERNEL_VERSION="6.6" ;;
-                14) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
-                13) KANDROID_VERSION="android13"; KERNEL_VERSION="5.15" ;;
-                12) KANDROID_VERSION="android12"; KERNEL_VERSION="5.10" ;;
-                *) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
-              esac
-              echo "✅ 推断版本: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
-            fi
+            # 🔥 修正：基于具体机型推断内核版本
+            # 对于 oneplus_ace_3v_b，应该使用 android14 + 6.1
+            case "$FILE" in
+              *ace_3v*)
+                KANDROID_VERSION="android14"
+                KERNEL_VERSION="6.1"
+                echo "✅ 机型 $FILE: 使用 android14 + 6.1"
+                ;;
+              *ace3*)
+                KANDROID_VERSION="android15" 
+                KERNEL_VERSION="6.6"
+                echo "✅ 机型 $FILE: 使用 android15 + 6.6"
+                ;;
+              *ace2*)
+                KANDROID_VERSION="android13"
+                KERNEL_VERSION="5.15"
+                echo "✅ 机型 $FILE: 使用 android13 + 5.15"
+                ;;
+              *11*)
+                KANDROID_VERSION="android13"
+                KERNEL_VERSION="5.15"
+                echo "✅ 机型 $FILE: 使用 android13 + 5.15"
+                ;;
+              *12*)
+                KANDROID_VERSION="android14"
+                KERNEL_VERSION="6.1"
+                echo "✅ 机型 $FILE: 使用 android14 + 6.1"
+                ;;
+              *)
+                # 默认基于 Android 版本推断
+                ANDROID_SHORT="${ANDROID_VERSION%%.*}"
+                case "$ANDROID_SHORT" in
+                  16) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;  # ColorOS 16 = AOSP 14
+                  15) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;  # ColorOS 15 = AOSP 14
+                  14) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
+                  13) KANDROID_VERSION="android13"; KERNEL_VERSION="5.15" ;;
+                  12) KANDROID_VERSION="android12"; KERNEL_VERSION="5 reductio.10" ;;
+                  *) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
+                esac
+                echo "✅ 默认推断: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
+                ;;
+            esac
             
             echo "KANDROID_VERSION=$KANDROID_VERSION" >> $GITHUB_ENV
             echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
@@ -329,7 +361,6 @@ jobs:
           fi
 
           # ... 您现有的其余代码 ...
-
 
           
 
