@@ -787,22 +787,29 @@ jobs:
           [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
           [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
 
-          # 🔥 关键修改：使用旧版 setup.sh
+          # 使用旧版 setup.sh
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
 
-          # 如果指定了手动 hash，就切换到该提交
+          # 🔥 修改：设置默认commit为 1e0590aeb22de47033ab1410c7dc56c9dd72be9a
+          DEFAULT_COMMIT="1e0590aeb22de47033ab1410c7dc56c9dd72be9a"
+          
+          # 如果用户没有指定hash，使用默认commit
           if [[ -n "$MANUAL_HASH" ]]; then
+            echo "切换到用户指定的commit: $MANUAL_HASH"
             git fetch origin "$BRANCH_NAME" --depth=50
             git checkout "$MANUAL_HASH"
-            SHORT_HASH=${MANUAL_HASH:0:8}
+            USE_HASH="${MANUAL_HASH:0:8}"
+          else
+            echo "使用默认commit: $DEFAULT_COMMIT"
+            git fetch origin "$BRANCH_NAME" --depth=50
+            git checkout "$DEFAULT_COMMIT"
+            USE_HASH="${DEFAULT_COMMIT:0:8}"
           fi
 
-          echo "当前 KernelSU commit: $(git rev-parse --short HEAD)"
-          echo "目录结构:"
-          ls -la
+          echo "当前KernelSU commit: $(git rev-parse --short HEAD)"
           
-          # 🔥 简化：没有Kbuild就跳过版本信息设置
+          # 检查目录结构
           KBUILD_PATH=""
           for path in "Kbuild" "kernel/Kbuild" "Makefile"; do
             if [ -f "$path" ]; then
@@ -812,32 +819,26 @@ jobs:
             fi
           done
 
-          KSU_API_VERSION="3.1.7"  # 默认值
+          # API版本和版本信息处理（保持不变）
+          KSU_API_VERSION="4.1.0"
           echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
-  
+
           GIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_HASH=$GIT_HASH" >> $GITHUB_ENV
 
           # 组装版本号
-          if [[ -n "$MANUAL_HASH" ]]; then
-            USE_HASH="$SHORT_HASH"
-          else
-            USE_HASH="$GIT_HASH"
-          fi
           if [[ -z "$CUSTOM_TAG" ]]; then
             VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$BRANCH_NAME"
           else
             VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$BRANCH_NAME[$USE_HASH]"
           fi
-  
-          # 🔥 修复EOF语法：只有找到Kbuild文件时才处理
-          if [ -n "$KBUILD_PATH" ] && [ -f "$KBUILD_PATH" ]; then
-            # 清理并写入 Kbuild 版本信息
+
+          # 写入版本信息（如果找到Kbuild文件）
+          if [ -n "$KBUILDheard_PATH" ] && [ -f "$KBUILD_PATH" ]; then
             sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
 
-            # 🔥 修复：使用正确的EOF格式
             {
               echo ""
               echo "define get_ksu_version_full"
@@ -853,24 +854,17 @@ jobs:
             echo "⚠️ 跳过版本信息写入（未找到有效的构建文件）"
           fi
 
-          KSU_VERSION=$(expr $(git rev-list --count main 2>/dev/null || echo 13000) + 37185)
+          # 版本号计算
+          KSU_VERSION="43210"  # 使用固定版本号
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          
-          # 完全自定义版本号
-          CUSTOM_VERSION="40321"  # 您想要的任意数字
-          echo "KSUVER=$CUSTOM_VERSION" >> $GITHUB_ENV
-          echo "自定义版本号: $CUSTOM_VERSION"
-
 
           echo "::group::最终集成信息"
-          echo "KernelSU commit: $(git rev-parse --short HEAD)"
+          echo "KernelSU版本: $(git rev-parse --short HEAD)"
           echo "构建文件: ${KBUILD_PATH:-未找到}"
-          echo "集成完成"
+          echo "内核版本号: $KSU_VERSION"
           echo "::endgroup::"
 
-
-
-
+  
 
 
 
@@ -893,28 +887,49 @@ jobs:
             git checkout "$SUSFS_META"
             echo "使用用户指定的SUSFS版本: $SUSFS_META"
           else
-            # 查找包含特定信息的2.0.0版本commit
-            FIRST_20_COMMIT=$(git log --oneline --grep="Rebase susfs patches onto official KernelSU main branch; Bump version to 2.0.0" | head -n1 | cut -d' ' -f1)
+            # 搜索包含特定关键词的commit（2025年10月23日左右）
+            echo "搜索包含 'kernel: SUS_MAP: KernelPageSize and' 的commit..."
+            TARGET_COMMIT=$(git log --oneline --grep="kernel: SUS_MAP: KernelPageSize and" --format="%H %ci %s" | head -n1)
             
-            if [ -n "$FIRST_20_COMMIT" ]; then
-              # 获取2.0.0之前的一个commit（应该是1.5系列的最后一个版本）
-              LAST_15_COMMIT=$(git rev-parse "${FIRST_20_COMMIT}^")
-              git checkout "$LAST_15_COMMIT"
-              echo "已回退到2.0.0之前的最后1.5版本"
-              echo "2.0.0版本commit: $FIRST_20_COMMIT"
-              echo "回退到commit: $LAST_15_COMMIT"
-              echo "Commit信息:"
-              git log --oneline -1
+            if [ -n "$TARGET_COMMIT" ]; then
+              COMMIT_HASH=$(echo "$TARGET_COMMIT" | cut -d' ' -f1)
+              COMMIT_DATE=$(echo "$TARGET_COMMIT" | cut -d' ' -f2)
+              COMMIT_MSG=$(echo "$TARGET_COMMIT" | cut -d' ' -f3-)
+              
+              echo "✅ 找到目标commit:"
+              echo "   Commit: $COMMIT_HASH"
+              echo "   日期: $COMMIT_DATE"
+              echo "   信息: $COMMIT_MSG"
+              
+              git checkout "$COMMIT_HASH"
+              echo "已切换到目标commit"
             else
-              echo "警告: 未找到2.0.0版本commit，使用最新版本"
+              # 如果找不到精确匹配，搜索2025年10月附近的commit
+              echo "⚠️ 未找到精确匹配，搜索2025年10月附近的commit..."
+              OCTOBER_COMMIT=$(git log --since="2025-10-20" --until="2025-10-30" --oneline --format="%H %ci %s" | head -n1)
+              
+              if [ -n "$OCTOBER_COMMIT" ]; then
+                OCT_HASH=$(echo "$OCTOBER_COMMIT" | cut -d' ' -f1)
+                OCT_DATE=$(echo "$OCTOBER_COMMIT" | cut -d' ' -f2)
+                echo "✅ 使用2025年10月附近的commit: $OCT_HASH ($OCT_DATE)"
+                git checkout "$OCT_HASH"
+              else
+                echo "❌ 未找到合适的commit，使用最新版本"
+              fi
             fi
           fi
+          
+          echo "当前commit信息:"
+          git log --oneline -1
           
           cd ..
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           git clone https://github.com/Numbersf/Action-Build.git
           cd kernel_platform
           
+          echo "正在查找可用的susfs补丁..."
+          # ... 原有的补丁查找和应用代码保持不变 ...
+
           echo "正在查找可用的susfs补丁..."
           # 尝试多个可能的补丁文件命名模式
           PATCH_PATTERNS=(
