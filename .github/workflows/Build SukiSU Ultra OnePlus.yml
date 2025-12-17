@@ -287,15 +287,6 @@ jobs:
           echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
 
 
-      - name: Extract Manifest Info
-        id: extract_info
-        env:
-          FILE: ${{ github.event.inputs.FILE }}
-        run: |
-          set -e
-          cd "$GITHUB_WORKSPACE"
-          # ... 您现有的代码 ...
-          
           # 解析 revision 字符串
           REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
           echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
