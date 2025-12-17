@@ -855,6 +855,12 @@ jobs:
 
           KSU_VERSION=$(expr $(git rev-list --count main 2>/dev/null || echo 13000) + 37185)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          
+          # 完全自定义版本号
+          CUSTOM_VERSION="40321"  # 您想要的任意数字
+          echo "KSUVER=$CUSTOM_VERSION" >> $GITHUB_ENV
+          echo "自定义版本号: $CUSTOM_VERSION"
+
 
           echo "::group::最终集成信息"
           echo "KernelSU commit: $(git rev-parse --short HEAD)"
