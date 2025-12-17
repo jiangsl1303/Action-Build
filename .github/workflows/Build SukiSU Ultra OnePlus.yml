@@ -842,13 +842,13 @@ jobs:
             sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
 
             VERSION_DEFINITIONS=$(cat <<EOF
-    define get_ksu_version_full
-    $VERSION_FULL
-    endef
-
-    KSU_VERSION_API := $KSU_API_VERSION
-    KSU_VERSION_FULL := $VERSION_FULL
-EOF
+            define get_ksu_version_full
+            $VERSION_FULL
+            endef
+   
+            KSU_VERSION_API := $KSU_API_VERSION
+            KSU_VERSION_FULL := $VERSION_FULL
+            EOF
             )
 
             awk -v def="$VERSION_DEFINITIONS" '
@@ -872,6 +872,7 @@ EOF
             grep -A5 "REPO_OWNER" "$KBUILD_PATH" 2>/dev/null || echo "无法读取版本信息"
           fi
           echo "::endgroup::"
+
 
 
 
