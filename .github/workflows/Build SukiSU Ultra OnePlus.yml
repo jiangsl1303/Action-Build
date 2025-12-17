@@ -155,6 +155,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+
+
+
+
+
+
       - name: Maximize Build Space
         if: ${{ github.event.inputs.SPACE_NOCLEAN == 'false' }}
         uses: easimon/maximize-build-space@master
@@ -185,6 +191,9 @@ jobs:
           echo "处理 FILE=$FILE, CONF=$FILE_CONF, BASE=$FILE_BASE"
           echo "FILE_CONF=$FILE_CONF" >> $GITHUB_ENV
           echo "FILE_BASE=$FILE_BASE" >> $GITHUB_ENV
+
+
+
 
           # 动态调用源码清单仓库，仓库优先级：1️⃣ OnePlusOSS → 2️⃣ Numbersf(可换)
           DYNAMIC_REPO_INPUT="${{ github.event.inputs.DYNAMIC_REPO }}"
@@ -276,6 +285,53 @@ jobs:
           fi
           # 传递组合信息
           echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
+
+
+          # 解析 revision 字符串
+          REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
+          echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
+          # 提取 CPU
+          CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
+          # 提取 ANDROID_VERSION
+          ANDROID_VERSION=$(echo "$REVISION" | grep -oP '\d{1,2}\.\d{1,2}(\.\d{1,2})?')
+          if [[ -n "$CPU" && -n "$ANDROID_VERSION" ]]; then
+            echo "✅ CPU=$CPU, ANDROID_VERSION=$ANDROID_VERSION"
+            echo "CPU=$CPU" >> $GITHUB_ENV
+            echo "ANDROID_VERSION=$ANDROID_VERSION" >> $GITHUB_ENV
+            # 获取短位 Android 版本号
+            echo "ANDROID_SHORT_VERSION=${ANDROID_VERSION%%.*}" >> $GITHUB_ENV
+            
+            # 🔥 新增：提取内核版本信息
+            # 从 revision 中提取内核版本（通常格式为 androidXX-kernelversion）
+            if [[ "$REVISION" =~ android([0-9]+)-([0-9]+\.[0-9]+) ]]; then
+              KANDROID_VERSION="android${BASH_REMATCH[1]}"
+              KERNEL_VERSION="${BASH_REMATCH[2]}"
+              echo "✅ 从revision提取: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
+            else
+              # 备用方案：基于Android版本推断内核版本
+              ANDROID_SHORT="${ANDROID_VERSION%%.*}"
+              case "$ANDROID_SHORT" in
+                16) KANDROID_VERSION="android16"; KERNEL_VERSION="6.1" ;;
+                15) KANDROID_VERSION="android15"; KERNEL_VERSION="6.6" ;;
+                14) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
+                13) KANDROID_VERSION="android13"; KERNEL_VERSION="5.15" ;;
+                12) KANDROID_VERSION="android12"; KERNEL_VERSION="5.10" ;;
+                *) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
+              esac
+              echo "✅ 推断版本: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
+            fi
+            
+            echo "KANDROID_VERSION=$KANDROID_VERSION" >> $GITHUB_ENV
+            echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+          else
+            echo "❌ 无法从 revision 中提取 CPU 或 ANDROID_VERSION"
+            exit 1
+          fi
+
+          # ... 您现有的其余代码 ...
+
+
+          
 
       - name: Debug Show Selected Inputs
         run: |
