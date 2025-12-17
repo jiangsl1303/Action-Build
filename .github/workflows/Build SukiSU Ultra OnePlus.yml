@@ -870,7 +870,6 @@ jobs:
 
 
 
-
       - name: Apply Patches SukiSU Ultra
         env:
           FILE: ${{ github.event.inputs.FILE }}
@@ -878,8 +877,12 @@ jobs:
           cd kernel_workspace
           SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
           
-          # 克隆SUSFS仓库
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git
+          # 根据内核版本构建正确的分支名称
+          SUSFS_BRANCH="gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
+          echo "使用SUSFS分支: $SUSFS_BRANCH"
+          
+          # 克隆对应分支的SUSFS仓库
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           cd susfs4ksu
           
           # 如果用户指定了版本，直接使用
@@ -887,8 +890,8 @@ jobs:
             git checkout "$SUSFS_META"
             echo "使用用户指定的SUSFS版本: $SUSFS_META"
           else
-            # 搜索包含特定关键词的commit（2025年10月23日左右）
-            echo "搜索包含 'kernel: SUS_MAP: KernelPageSize and' 的commit..."
+            # 在对应分支中搜索包含特定关键词的commit（2025年10月23日左右）
+            echo "在分支 $SUSFS_BRANCH 中搜索 'kernel: SUS_MAP: KernelPageSize and' 的commit..."
             TARGET_COMMIT=$(git log --oneline --grep="kernel: SUS_MAP: KernelPageSize and" --format="%H %ci %s" | head -n1)
             
             if [ -n "$TARGET_COMMIT" ]; then
@@ -904,22 +907,28 @@ jobs:
               git checkout "$COMMIT_HASH"
               echo "已切换到目标commit"
             else
-              # 如果找不到精确匹配，搜索2025年10月附近的commit
-              echo "⚠️ 未找到精确匹配，搜索2025年10月附近的commit..."
-              OCTOBER_COMMIT=$(git log --since="2025-10-20" --until="2025-10-30" --oneline --format="%H %ci %s" | head -n1)
-              
-              if [ -n "$OCTOBER_COMMIT" ]; then
-                OCT_HASH=$(echo "$OCTOBER_COMMIT" | cut -d' ' -f1)
-                OCT_DATE=$(echo "$OCTOBER_COMMIT" | cut -d' ' -f2)
-                echo "✅ 使用2025年10月附近的commit: $OCT_HASH ($OCT_DATE)"
-                git checkout "$OCT_HASH"
+              # 如果找不到精确匹配，搜索具体commit哈希
+              echo "⚠️ 未找到精确匹配，尝试直接使用 commit a162e246..."
+              if git checkout a162e246 2>/dev/null; then
+                echo "✅ 成功切换到 commit a162e246"
               else
-                echo "❌ 未找到合适的commit，使用最新版本"
+                # 最后尝试搜索2025年10月附近的commit
+                echo "尝试搜索2025年10月附近的commit..."
+                OCTOBER_COMMIT=$(git log --since="2025-10-20" --until="2025-10-30" --oneline --format="%H %ci %s" | head -n1)
+                
+                if [ -n "$OCTOBER_COMMIT" ]; then
+                  OCT_HASH=$(echo "$OCTOBER_COMMIT" | cut -d' ' -f1)
+                  OCT_DATE=$(echo "$OCTOBER_COMMIT" | cut -d' ' -f2)
+                  echo "✅ 使用2025年10月附近的commit: $OCT_HASH ($OCT_DATE)"
+                  git checkout "$OCT_HASH"
+                else
+                  echo "❌ 未找到合适的commit，使用分支最新版本"
+                fi
               fi
             fi
           fi
           
-          echo "当前commit信息:"
+          echo "当前SUSFS commit信息:"
           git log --oneline -1
           
           cd ..
@@ -928,42 +937,57 @@ jobs:
           cd kernel_platform
           
           echo "正在查找可用的susfs补丁..."
-          # ... 原有的补丁查找和应用代码保持不变 ...
-
-          echo "正在查找可用的susfs补丁..."
-          # 尝试多个可能的补丁文件命名模式
-          PATCH_PATTERNS=(
-            "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch"
+          # 尝试精确匹配当前内核版本的补丁
+          EXPECTED_PATCH_NAME="50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch"
+          EXPECTED_PATCH="../susfs4ksu/kernel_patches/$EXPECTED_PATCH_NAME"
+          
+          # 也尝试其他可能的命名模式
+          ALTERNATIVE_PATTERNS=(
             "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-*.patch"
+            "../susfs4ksu/kernel_patches/50_add_susfs_in_kernel-*.patch"
             "../susfs4ksu/kernel_patches/*susfs*.patch"
           )
           
+          PATCH_FILE=""
           PATCH_FOUND=false
-          for pattern in "${PATCH_PATTERNS[@]}"; do
-            if ls $pattern 1> /dev/null 2>&1; then
-              PATCH_FILE=$(ls $pattern | head -n1)
-              echo "找到补丁文件: $PATCH_FILE"
-              cp "$PATCH_FILE" ./common/
-              PATCH_FOUND=true
-              break
-            fi
-          done
+          
+          if [ -f "$EXPECTED_PATCH" ]; then
+            PATCH_FILE="$EXPECTED_PATCH"
+            echo "✅ 找到精确匹配的补丁文件: $PATCH_FILE"
+            PATCH_FOUND=true
+          else
+            echo "⚠️ 未找到精确匹配的补丁，尝试其他模式..."
+            for pattern in "${ALTERNATIVE_PATTERNS[@]}"; do
+              found_files=$(ls $pattern 2>/dev/null | head -1)
+              if [ -n "$found_files" ]; then
+                PATCH_FILE="$found_files"
+                echo "✅ 找到兼容补丁文件: $PATCH_FILE"
+                PATCH_FOUND=true
+                break
+              fi
+            done
+          fi
           
           if [ "$PATCH_FOUND" = true ]; then
+            # 复制补丁文件到common目录，使用标准命名
+            cp "$PATCH_FILE" "./common/$EXPECTED_PATCH_NAME"
+            echo "✅ 补丁已复制为: $EXPECTED_PATCH_NAME"
+            
             # 复制其他必要文件
             if [ -d "../susfs4ksu/kernel_patches/fs" ]; then
-              cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/ 2>/dev/null || echo "复制fs目录文件失败或目录为空"
+              cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/ 2>/dev/null || echo "⚠️ 复制fs目录文件失败或目录为空"
             fi
             if [ -d "../susfs4ksu/kernel_patches/include/linux" ]; then
-              cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/ 2>/dev/null || echo "复制include/linux目录文件失败或目录为空"
+              cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/ 2>/dev/null || echo "⚠️ 复制include/linux目录文件失败或目录为空"
             fi
             echo "susfs补丁拉取完成"
           else
-            echo "错误: 未找到任何susfs补丁文件"
-            echo "查看可用的补丁文件:"
+            echo "❌ 错误: 未找到任何susfs补丁文件"
+            echo "可用的补丁文件:"
             find ../susfs4ksu/kernel_patches/ -name "*.patch" -type f 2>/dev/null || echo "无patch文件"
             exit 1
           fi
+
 
           if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
             echo "正在拉取zram补丁"
