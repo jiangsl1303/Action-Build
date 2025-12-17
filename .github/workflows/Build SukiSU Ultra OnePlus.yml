@@ -764,180 +764,114 @@ jobs:
 
 
 
-      - name: Add SukiSU Ultra (Compatible with Old/New Versions)
+
+          
+
+      - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
 
           KSU_META="${{ github.event.inputs.KSU_META }}"
+
+          # 必须包含两个分隔符（至少三个字段）
+          if [[ "$(grep -o '/' <<< "$KSU_META" | wc -l)" -lt 2 ]]; then
+            echo "错误: KSU_META 参数缺少必要的分隔符 '/'，格式应为: 分支名/自定义标识(可省略)/提交hash(可省略)"
+            exit 10
+          fi
+
+          # 解析字段：分支 / 自定义标识 / 手动 hash
           IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
-          echo "分支名: $BRANCH_NAME, Hash: $MANUAL_HASH"
 
-          # 确定 drivers 目录路径
-          if [ -d "common/drivers" ]; then
-            DRIVER_DIR="common/drivers"
-          elif [ -d "drivers" ]; then
-            DRIVER_DIR="drivers"
-          else
-            echo '[ERROR] "drivers/" directory not found.'
-            exit 127
-          fi
+          echo "分支名: $BRANCH_NAME"
+          [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
+          [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
 
-          DRIVER_MAKEFILE="$DRIVER_DIR/Makefile"
-          DRIVER_KCONFIG="$DRIVER_DIR/Kconfig"
+          # 🔥 关键修改：使用旧版 setup.sh
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
+          cd ./KernelSU
 
-          echo "[+] Setting up KernelSU (Compatible Mode)..."
-
-          # 克隆 KernelSU 仓库
-          if [ ! -d "KernelSU" ]; then
-            git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git KernelSU
-          fi
-          
-          cd KernelSU
-          
-          # 切换到指定分支
-          git checkout "$BRANCH_NAME" 2>/dev/null || git checkout main
-          echo "[-] Switched to $BRANCH_NAME branch."
-          
-          # 切换到指定 commit（如果提供了）
-          if [ -n "$MANUAL_HASH" ]; then
+          # 如果指定了手动 hash，就切换到该提交
+          if [[ -n "$MANUAL_HASH" ]]; then
+            git fetch origin "$BRANCH_NAME" --depth=50
             git checkout "$MANUAL_HASH"
-            echo "[-] Checked out $MANUAL_HASH"
-          fi
-          
-          # 检测目录结构并确定 kernel 源路径
-          KERNEL_SRC_PATH=""
-          KSU_KERNEL_DIR="kernelsu"
-          
-          if [ -d "kernel" ]; then
-            echo "✅ 检测到新版目录结构"
-            KERNEL_SRC_PATH="kernel"
-          elif [ -d "kernel/kernel" ]; then
-            echo "✅ 检测到嵌套目录结构"
-            KERNEL_SRC_PATH="kernel/kernel"
-          else
-            echo "✅ 检测到旧版目录结构"
-            KERNEL_SRC_PATH="."
-          fi
-          
-          echo "Kernel 源码路径: $KERNEL_SRC_PATH"
-          
-          cd ..
-          
-          # 删除旧的符号链接或目录
-          if [ -L "$DRIVER_DIR/kernelsu" ]; then
-            rm "$DRIVER_DIR/kernelsu"
-          fi
-          if [ -d "$DRIVER_DIR/kernelsu" ]; then
-            rm -rf "$DRIVER_DIR/kernelsu"
-          fi
-          
-          # 创建符号链接到 kernel 源码目录
-          ln -sf "../../KernelSU/$KERNEL_SRC_PATH" "$DRIVER_DIR/$KSU_KERNEL_DIR"
-          echo "[+] Symlink created: $DRIVER_DIR/$KSU_KERNEL_DIR -> KernelSU/$KERNEL_SRC_PATH"
-
-          # 修改 Makefile
-          if ! grep -q "$KSU_KERNEL_DIR" "$DRIVER_MAKEFILE"; then
-            echo "obj-\$(CONFIG_KSU) += $KSU_KERNEL_DIR/" >> "$DRIVER_MAKEFILE"
-            echo "[+] Modified Makefile."
-          else
-            echo "[+] Makefile entry exists."
+            SHORT_HASH=${MANUAL_HASH:0:8}
           fi
 
-          # 修改 Kconfig
-          if ! grep -q "source \"drivers/$KSU_KERNEL_DIR/Kconfig\"" "$DRIVER_KCONFIG"; then
-            if grep -q "^endmenu" "$DRIVER_KCONFIG"; then
-              sed -i '/^endmenu/i\source "drivers/'"$KSU_KERNEL_DIR"'/Kconfig"' "$DRIVER_KCONFIG"
-            else
-              echo "source \"drivers/$KSU_KERNEL_DIR/Kconfig\"" >> "$DRIVER_KCONFIG"
-            fi
-            echo "[+] Modified Kconfig."
-          else
-            echo "[+] Kconfig entry exists."
-          fi
-
-          echo '[+] KernelSU setup completed.'
-
-          # 版本信息处理 - 兼容新旧结构
-          cd KernelSU
-          
-          # 查找 Kbuild 或 Makefile 文件
-          KBUILD_PATHS=("kernel/Kbuild" "Kbuild" "kernel/kernel/Kbuild" "kernel/Makefile" "Makefile")
+          # 🔥 修改：智能查找 Kbuild 文件路径
           KBUILD_PATH=""
-          
-          for path in "${KBUILD_PATHS[@]}"; do
-            if [ -f "$path" ]; then
-              KBUILD_PATH="$path"
-              echo "✅ 找到构建文件: $KBUILD_PATH"
-              break
-            fi
-          done
-          
-          if [ -z "$KBUILD_PATH" ]; then
-            echo "⚠️ 未找到标准构建文件"
-            KBUILD_PATH="kernel/Kbuild"
-            mkdir -p kernel
-          fi
-          
-          # 获取 API 版本
-          if [ -f "$KBUILD_PATH" ]; then
-            KSU_API_VERSION=$(grep -m1 "KSU_VERSION_API :=" "$KBUILD_PATH" 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || echo "3.1.7")
+          if [ -f "Kbuild" ]; then
+            KBUILD_PATH="Kbuild"
+            echo "✅ 使用旧版结构: 根目录 Kbuild"
+          elif [ -f "kernel/Kbuild" ]; then
+            KBUILD_PATH="kernel/Kbuild" 
+            echo "✅ 使用新版结构: kernel/Kbuild"
           else
+            echo "⚠️ 未找到标准 Kbuild 文件"
+            # 尝试自动查找
+            KBUILD_PATH=$(find . -name "Kbuild" | head -1)
+            [ -n "$KBUILD_PATH" ] && echo "找到 Kbuild: $KBUILD_PATH" || echo "未找到任何 Kbuild 文件"
+          fi
+
+          KSU_API_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/$BRANCH_NAME/kernel/Kbuild" | \
+            grep -m1 "KSU_VERSION_API :=" | awk -F'= ' '{print $2}' | tr -d '[:space:]')
+          if [[ -z "$KSU_API_VERSION" || "$(printf '%s\n' "$KSU_API_VERSION" "3.1.7" | sort -V | head -n1)" != "3.1.7" ]]; then
             KSU_API_VERSION="3.1.7"
           fi
-
           echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
 
           GIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_HASH=$GIT_HASH"
 
           # 组装版本号
-          if [ -n "$MANUAL_HASH" ]; then
-            USE_HASH="${MANUAL_HASH:0:8}"
+          if [[ -n "$MANUAL_HASH" ]]; then
+            USE_HASH="$SHORT_HASH"
           else
             USE_HASH="$GIT_HASH"
           fi
-          
-          if [ -z "$CUSTOM_TAG" ]; then
+          if [[ -z "$CUSTOM_TAG" ]]; then
             VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$BRANCH_NAME"
           else
             VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$BRANCH_NAME[$USE_HASH]"
           fi
 
-          # 写入版本信息（如果文件存在）
-          if [ -f "$KBUILD_PATH" ]; then
+          # 🔥 修改：只有在找到 Kbuild 文件时才进行修改
+          if [ -n "$KBUILD_PATH" ] && [ -f "$KBUILD_PATH" ]; then
+            # 清理并写入 Kbuild 版本信息
             sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
 
-            # 使用更安全的方式写入多行内容
-            {
-              echo ""
-              echo "define get_ksu_version_full"
-              echo "$VERSION_FULL"
-              echo "endef"
-              echo ""
-              echo "KSU_VERSION_API := $KSU_API_VERSION"
-              echo "KSU_VERSION_FULL := $VERSION_FULL"
-            } >> "$KBUILD_PATH"
+            VERSION_DEFINITIONS=$(cat <<EOF
+    define get_ksu_version_full
+    $VERSION_FULL
+    endef
+
+    KSU_VERSION_API := $KSU_API_VERSION
+    KSU_VERSION_FULL := $VERSION_FULL
+EOF
+            )
+
+            awk -v def="$VERSION_DEFINITIONS" '
+              /REPO_OWNER :=/ {print; print def; inserted=1; next}
+              1
+              END {if (!inserted) print def}
+            ' "$KBUILD_PATH" > "${KBUILD_PATH}.tmp" && mv "${KBUILD_PATH}.tmp" "$KBUILD_PATH"
             
-            echo "[+] Version info updated in $KBUILD_PATH"
+            echo "✅ 版本信息已写入 $KBUILD_PATH"
           else
-            echo "⚠️ 跳过版本信息写入（文件不存在）"
+            echo "⚠️ 跳过版本信息写入（未找到有效的 Kbuild 文件）"
           fi
 
-          KSU_VERSION=$(expr $(git rev-list --count "$BRANCH_NAME" 2>/dev/null || echo 13000) + 37185)
+          KSU_VERSION=$(expr $(git rev-list --count main 2>/dev/null || echo 13000) + 37185)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
           echo "::group::最终集成信息"
-          echo "KernelSU 路径: $KERNEL_SRC_PATH"
-          echo "驱动目录: $DRIVER_DIR/$KSU_KERNEL_DIR" 
-          echo "构建文件: $KBUILD_PATH"
-          echo "API 版本: $KSU_API_VERSION"
-          echo "Git Hash: $GIT_HASH"
-          echo "完整版本: $VERSION_FULL"
-          echo "构建版本: $KSU_VERSION"
+          echo "KernelSU commit: $(git rev-parse --short HEAD)"
+          echo "Kbuild 路径: ${KBUILD_PATH:-未找到}"
+          if [ -n "$KBUILD_PATH" ] && [ -f "$KBUILD_PATH" ]; then
+            grep -A5 "REPO_OWNER" "$KBUILD_PATH" 2>/dev/null || echo "无法读取版本信息"
+          fi
           echo "::endgroup::"
-
 
 
 
