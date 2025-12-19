@@ -766,43 +766,27 @@ jobs:
 
 
 
-          
-
-
       - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
 
           KSU_META="${{ github.event.inputs.KSU_META }}"
-
-          # 必须包含两个分隔符（至少三个字段）
-          if [[ "$(grep -o '/' <<< "$KSU_META" | wc -l)" -lt 2 ]]; then
-            echo "错误: KSU_META 参数缺少必要的分隔符 '/'，格式应为: 分支名/自定义标识(可省略)/提交hash(可省略)"
-            exit 10
-          fi
-
-          # 解析字段：分支 / 自定义标识 / 手动 hash
           IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
 
           echo "分支名: $BRANCH_NAME"
           [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
           [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
 
-          # 使用旧版 setup.sh
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
-
-          # 🔥 修改：设置默认commit为 aef96cd93cf78c4d7bd1615e15e1ce9272d1ecfc
+          
           DEFAULT_COMMIT="aef96cd93cf78c4d7bd1615e15e1ce9272d1ecfc"
           
-          # 如果用户没有指定hash，使用默认commit
           if [[ -n "$MANUAL_HASH" ]]; then
-            echo "切换到用户指定的commit: $MANUAL_HASH"
             git fetch origin "$BRANCH_NAME" --depth=50
             git checkout "$MANUAL_HASH"
             USE_HASH="${MANUAL_HASH:0:8}"
           else
-            echo "使用默认commit: $DEFAULT_COMMIT"
             git fetch origin "$BRANCH_NAME" --depth=50
             git checkout "$DEFAULT_COMMIT"
             USE_HASH="${DEFAULT_COMMIT:0:8}"
@@ -810,7 +794,7 @@ jobs:
 
           echo "当前KernelSU commit: $(git rev-parse --short HEAD)"
           
-          # 检查目录结构
+          # 查找Kbuild文件
           KBUILD_PATH=""
           for path in "Kbuild" "kernel/Kbuild" "Makefile"; do
             if [ -f "$path" ]; then
@@ -820,22 +804,20 @@ jobs:
             fi
           done
 
-          # API版本和版本信息处理（保持不变）
           KSU_API_VERSION="4.1.0"
           echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
 
-          GIT_HASH=$(git rev-parse --short YSYZ)
+          GIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_HASH=$GIT_HASH" >> $GITHUB_ENV
 
-          # 组装版本号
+          DISPLAY_BRANCH="ysyz"
           if [[ -z "$CUSTOM_TAG" ]]; then
-            VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$BRANCH_NAME"
+            VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$DISPLAY_BRANCH"
           else
-            VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$BRANCH_NAME[$USE_HASH]"
+            VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$DISPLAY_BRANCH[$USE_HASH]"
           fi
 
-          # 写入版本信息（如果找到Kbuild文件）
-          if [ -n "$KBUILDheard_PATH" ] && [ -f "$KBUILD_PATH" ]; then
+          if [ -n "$KBUILD_PATH" ] && [ -f "$KBUILD_PATH" ]; then
             sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_FULL :=/d' "$KBUILD_PATH" 2>/dev/null || true
@@ -852,20 +834,21 @@ jobs:
             
             echo "✅ 版本信息已写入 $KBUILD_PATH"
           else
-            echo "⚠️ 跳过版本信息写入（未找到有效的构建文件）"
+            echo "⚠️ 跳过版本信息写入"
           fi
 
-          # 版本号计算
-          KSU_VERSION="43210"  # 使用固定版本号
+          # 🔥 修复：避免使用 git rev-list --count（会失败）
+          # 使用固定版本号
+          KSU_VERSION="42000"
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          echo "设置内核版本号: $KSU_VERSION"
 
           echo "::group::最终集成信息"
           echo "KernelSU版本: $(git rev-parse --short HEAD)"
-          echo "构建文件: ${KBUILD_PATH:-未找到}"
+          echo "显示版本: $VERSION_FULL"
           echo "内核版本号: $KSU_VERSION"
           echo "::endgroup::"
 
-  
 
 
 
