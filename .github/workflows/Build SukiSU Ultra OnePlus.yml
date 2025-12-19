@@ -76,7 +76,7 @@ on:
         type: string
         description: "自定义构建时间(输入F使用当前UTC时间)"
         required: false
-        default: "F"
+        default: "Mon Aug 18 09:30:24 UTC 2025"
       KSU_META:
         type: string
         description: "分支名(必填)/自定义版本标识(留空不修改)/回退分支提交哈希版本(留空不修改)"
