@@ -76,7 +76,7 @@ on:
         type: string
         description: "自定义构建时间(输入F使用当前UTC时间)"
         required: false
-        default: "Mon Aug 18 09:30:24 UTC 2025"
+        default: "F"
       KSU_META:
         type: string
         description: "分支名(必填)/自定义版本标识(留空不修改)/回退分支提交哈希版本(留空不修改)"
@@ -100,22 +100,22 @@ on:
         type: boolean
         description: "是否启用内核模块(KPM)？"
         required: true
-        default: true
+        default: false
       LSM:
         type: boolean
         description: "是否启用关键分区写入保护模块(BBG)？"
         required: true
-        default: true
+        default: false
       NETFILTER:
         type: boolean
         description: "是否启用网络功能拓展(NETFILTER)？"
         required: true
-        default: true
+        default: false
       BBR_ECN:
         type: boolean
         description: "是否启用网络优化算法(BBR+ECN)？"
         required: true
-        default: true
+        default: false
       SCHED:
         type: boolean
         description: "是否添加风驰驱动1.0？"
@@ -814,8 +814,8 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
 
-          # 🔥 修改：设置默认commit为 7a769775d8d44a3eb6d0830e6a238e87d55db007
-          DEFAULT_COMMIT="7a769775d8d44a3eb6d0830e6a238e87d55db007"
+          # 🔥 修改：设置默认commit为 aef96cd93cf78c4d7bd1615e15e1ce9272d1ecfc
+          DEFAULT_COMMIT="aef96cd93cf78c4d7bd1615e15e1ce9272d1ecfc"
           
           # 如果用户没有指定hash，使用默认commit
           if [[ -n "$MANUAL_HASH" ]]; then
