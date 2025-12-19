@@ -791,8 +791,8 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
 
-          # 🔥 修改：设置默认commit为 1e0590aeb22de47033ab1410c7dc56c9dd72be9a
-          DEFAULT_COMMIT="1e0590aeb22de47033ab1410c7dc56c9dd72be9a"
+          # 🔥 修改：设置默认commit为 7a769775d8d44a3eb6d0830e6a238e87d55db007
+          DEFAULT_COMMIT="7a769775d8d44a3eb6d0830e6a238e87d55db007"
           
           # 如果用户没有指定hash，使用默认commit
           if [[ -n "$MANUAL_HASH" ]]; then
