@@ -353,7 +353,30 @@ jobs:
 
           # ... 您现有的其余代码 ...
 
+
+              
+      - name: Fix sucompat.c Code
+        run: |
+          cd kernel_workspace/kernel_platform/common
           
+          if [ -f "drivers/kernelsu/sucompat.c" ]; then
+            echo "修复sucompat.c代码逻辑..."
+            
+            # 备份原文件
+            cp drivers/kernelsu/sucompat.c drivers/kernelsu/sucompat.c.backup
+            
+            # 修复第195行的未使用变量问题
+            # 方案A：删除未使用的变量声明
+            sed -i '195d' drivers/kernelsu/sucompat.c
+            
+            # 或者方案B：添加使用该变量的代码
+            # sed -i '195a\\t(void)is_allowed;  // Mark as used' drivers/kernelsu/sucompat.c
+            
+            echo "✅ sucompat.c修复完成"
+          else
+            echo "❌ 未找到sucompat.c文件"
+          fi
+
 
       - name: Debug Show Selected Inputs
         run: |
@@ -823,7 +846,7 @@ jobs:
           KSU_API_VERSION="4.1.0"
           echo "KSU_API_VERSION=$KSU_API_VERSION" >> $GITHUB_ENV
 
-          GIT_HASH=$(git rev-parse --short HEAD)
+          GIT_HASH=$(git rev-parse --short YSYZ)
           echo "GIT_HASH=$GIT_HASH" >> $GITHUB_ENV
 
           # 组装版本号
