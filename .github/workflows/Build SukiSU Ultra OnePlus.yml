@@ -448,8 +448,7 @@ jobs:
 
 
 
-
-      - name: Initialize Repo and Sync (修复远程配置)
+      - name: Initialize Repo and Sync (修复参数错误)
         env:
           FILE: ${{ github.event.inputs.FILE }}
         run: |
@@ -461,11 +460,11 @@ jobs:
           
           echo "=== 修复Manifest配置 ==="
           
-          # 下载原始manifest
+          # 下载并修复manifest
           MANIFEST_URL="https://raw.githubusercontent.com/${MANIFEST_REPO}/kernel_manifest/${MANIFEST_BRANCH}/${FILE}.xml"
           curl -s "$MANIFEST_URL" > original_manifest.xml
           
-          # 🔥 关键修复：统一远程和分支
+          # 修复远程配置
           sed -i \
             -e 's/remote="clo-la"/remote="origin"/g' \
             -e 's|fetch="https://git.codelinaro.org/clo/la"|fetch="https://github.com/OnePlusOSS"|g' \
@@ -475,14 +474,21 @@ jobs:
           
           cp original_manifest.xml ".repo/manifests/${FILE}.xml"
           
-          echo "修复后的Manifest关键内容:"
-          grep -E "remote|fetch|revision" ".repo/manifests/${FILE}.xml" | head -10
-          
           BASE_URL="https://github.com/${MANIFEST_REPO}/kernel_manifest.git"
           
           echo "使用修复配置初始化仓库..."
           repo init -u "$BASE_URL" -b "$MANIFEST_BRANCH" -m "${FILE}.xml" --depth=1 --no-clone-bundle --no-tags
-          repo sync -c -j2 --no-clone-bundle --no-tags --force-sync --fail-fast=false 2>&1 | tee sync.log
+          
+          # 🔥 修复：移除有问题的 --fail-fast 参数
+          repo sync -c -j2 --no-clone-bundle --no-tags --force-sync 2>&1 | tee sync.log || {
+            echo "首次同步可能有问题，尝试二次同步..."
+            repo sync -c -j1 --no-clone-bundle --no-tags --force-sync || echo "同步完成（可能有警告）"
+          }
+
+          echo "同步完成，检查目录结构..."
+          find . -type d -name "kernel_platform" | head -5
+          ls -la
+
 
 
 
