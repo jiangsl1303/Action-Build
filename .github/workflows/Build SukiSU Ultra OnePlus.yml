@@ -1081,6 +1081,43 @@ jobs:
           patch -p1 -F 3 < hmbird_patch.patch
           echo "OGKI转换GKI_patch完成"
 
+
+
+
+
+
+      - name: Install Full Toolchain
+        uses: awalsh128/cache-apt-pkgs-action@latest 
+        with: 
+          packages: >
+            llvm
+            lld
+            clang
+            binutils
+            gcc-aarch64-linux-gnu
+            gcc-x86-64-linux-gnu
+            libelf-dev
+            build-essential
+            flex
+            bison
+            libssl-dev
+            libncurses-dev
+            liblz4-tool
+            zlib1g-dev
+            libxml2-utils
+            rsync
+            unzip
+            gawk
+            dos2unix
+          execute_install_scripts: true
+
+
+
+
+
+
+
+
       - name: Apply ZRAM
         if: ${{ github.event.inputs.ZRAM == 'true' }}
         run: |
