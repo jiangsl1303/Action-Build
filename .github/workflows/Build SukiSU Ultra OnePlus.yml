@@ -440,11 +440,11 @@ jobs:
           fi
           ccache -s
 
-      #- name: Install Repo Tool
-      #  run: |
-        #  curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
-         # chmod a+x ~/repo
-         # sudo mv ~/repo /usr/local/bin/repo
+      - name: Install Repo Tool
+        run: |
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+          chmod a+x ~/repo
+          sudo mv ~/repo /usr/local/bin/repo
 
 
 
@@ -488,34 +488,7 @@ jobs:
 
 
 
-      - name: Initialize Repo and Sync
-        env:
-          FILE: ${{ github.event.inputs.FILE }}
-        run: |
-          mkdir kernel_workspace && cd kernel_workspace
-          mkdir -p .repo/manifests
-          cp "$GITHUB_WORKSPACE/.repo/manifests_fallback/${FILE}.xml" ".repo/manifests/${FILE}.xml"
-
-          MANIFEST_REPO="${{ env.MANIFEST_REPO }}"
-          MANIFEST_BRANCH="${{ env.MANIFEST_BRANCH }}"
-          CPU="${{ env.CPU }}"
-          echo "MANIFEST_REPO=$MANIFEST_REPO"
-          echo "MANIFEST_BRANCH=$MANIFEST_BRANCH"
-
-          BASE_URL="https://github.com/${MANIFEST_REPO}/kernel_manifest.git"
-
-          echo "使用 $MANIFEST_REPO 的分支 $MANIFEST_BRANCH 初始化仓库..."
-          repo init -u "$BASE_URL" -b "$MANIFEST_BRANCH" -m "${FILE}.xml" --depth=1 --no-clone-bundle --no-tags
-          repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync
-
-          for dir in kernel_platform/common kernel_platform/msm-kernel; do
-            if [ -e "$dir/BUILD.bazel" ]; then
-              sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' "$dir/BUILD.bazel"
-            fi
-            rm -f "$dir/android/abi_gki_protected_exports_"* 2>/dev/null || echo "No protected exports in $dir"
-          done
-
-
+      
 
 
 
