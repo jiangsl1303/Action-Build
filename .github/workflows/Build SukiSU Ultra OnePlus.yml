@@ -189,76 +189,6 @@ jobs:
 
 
 
-
-
-
-
-          # 默认仓库寻找文件
-          if check_repo "OnePlusOSS" "${REPOS["OnePlusOSS"]}"; then
-            echo "MANIFEST_REPO=OnePlusOSS" >> $GITHUB_ENV
-            echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
-          fi
-
-          # 动态仓库寻找文件
-          if [[ -z "$FOUND_REPO" ]]; then
-            DYNAMIC_URL="${REPOS["Dynamic"]}"
-            DYNAMIC_OWNER=$(echo "$DYNAMIC_URL" | sed -E 's#https://api.github.com/repos/([^/]+)/.*#\1#')
-            if check_repo "$DYNAMIC_OWNER" "$DYNAMIC_URL"; then
-              echo "MANIFEST_REPO=$DYNAMIC_OWNER" >> $GITHUB_ENV
-              echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
-            fi
-          fi
-
-          if [[ -z "$FOUND_REPO" || ! -s "$XML_PATH" ]]; then
-            echo "❌ 无法在动态仓库中找到 ${FILE}.xml"
-            exit 1
-          fi
-
-          # ... 其余代码保持不变 ...
-
-
-          # 解析 revision 字符串
-          REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
-          echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
-          # 提取 CPU
-          CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
-          # 提取 ANDROID_VERSION
-          ANDROID_VERSION=$(echo "$REVISION" | grep -oP '\d{1,2}\.\d{1,2}(\.\d{1,2})?')
-          if [[ -n "$CPU" && -n "$ANDROID_VERSION" ]]; then
-            echo "✅ CPU=$CPU, ANDROID_VERSION=$ANDROID_VERSION"
-            echo "CPU=$CPU" >> $GITHUB_ENV
-            echo "ANDROID_VERSION=$ANDROID_VERSION" >> $GITHUB_ENV
-            # 获取短位 Android 版本号
-            echo "ANDROID_SHORT_VERSION=${ANDROID_VERSION%%.*}" >> $GITHUB_ENV
-          else
-            echo "❌ 无法从 revision 中提取 CPU 或 ANDROID_VERSION"
-            exit 1
-          fi
-
-          echo "解析 README.md 获取 CPUD 和 BUILD_METHOD..."
-          if [[ -s "$README_PATH" ]]; then
-            BUILD_LINE=$(grep -m1 'oplus_build_kernel.sh' "$README_PATH" || true)
-            if [[ -n "$BUILD_LINE" ]]; then
-              CPUD=$(echo "$BUILD_LINE" | awk '{print $(NF-1)}')
-              BUILD_METHOD=$(echo "$BUILD_LINE" | awk '{print $NF}')
-              echo "✅ CPUD=$CPUD, BUILD_METHOD=$BUILD_METHOD"
-              echo "CPUD=$CPUD" >> $GITHUB_ENV
-              echo "BUILD_METHOD=$BUILD_METHOD" >> $GITHUB_ENV
-            else
-              echo "❌ README.md 中未找到构建命令"
-            fi
-          else
-            echo "❌ README.md 下载失败或为空"
-          fi
-          # 传递组合信息
-          echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
-
-
-          # 解析 revision 字符串
-          REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
-          echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
-          # 提取 CPU
-          CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
       - name: Extract Manifest Info (修复版)
         id: extract_info
         env:
@@ -389,6 +319,10 @@ jobs:
           fi
           # 传递组合信息
           echo "value=${FILE_BASE_DISPLAY}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
+
+
+
+
 
 
               
