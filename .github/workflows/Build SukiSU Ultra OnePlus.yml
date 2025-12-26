@@ -192,85 +192,6 @@ jobs:
 
 
 
-      - name: Extract Manifest Info
-        id: extract_info
-        env:
-          FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
-          ANDROID_TARGET_VERSION: ${{ github.event.inputs.ANDROID_TARGET_VERSION }}
-        run: |
-          set -e
-          cd "$GITHUB_WORKSPACE"
-          
-          # 根据选择的Android版本确定文件后缀
-          case "$ANDROID_TARGET_VERSION" in
-            "12") FILE_SUFFIX="_s" ;;
-            "13") FILE_SUFFIX="_t" ;;
-            "14") FILE_SUFFIX="_u" ;;
-            "15") FILE_SUFFIX="_v" ;;
-            "16") FILE_SUFFIX="_b" ;;
-            "17") FILE_SUFFIX="_c" ;;
-            "18") FILE_SUFFIX="_?" ;;
-            "19") FILE_SUFFIX="_?" ;;
-            *) FILE_SUFFIX="_b" ;;
-          esac
-          
-          FILE="${FILE_BASE}${FILE_SUFFIX}"
-          echo "最终文件名: $FILE"
-          
-          if [[ "$FILE_BASE" =~ ^(.+)_([a-zA-Z])$ ]]; then
-            FILE_CONF="${BASH_REMATCH[1]}"
-          else
-            FILE_CONF="$FILE_BASE"
-          fi
-          
-          FILE_BASE_DISPLAY=$(echo "$FILE_CONF" | sed -E 's/_([a-zA-Z0-9])/\U\1/g; s/^oneplus/OnePlus/; s/^realme/Realme/; s/^oppo/Oppo/')
-          
-          mkdir -p ".repo/manifests_fallback"
-          XML_PATH=".repo/manifests_fallback/${FILE}.xml"
-          README_PATH=".repo/manifests_fallback/README.md"
-          
-          echo "处理 FILE=$FILE, CONF=$FILE_CONF, BASE=$FILE_BASE_DISPLAY"
-          echo "目标Android版本: $ANDROID_TARGET_VERSION"
-          echo "文件后缀: $FILE_SUFFIX"
-          echo "FILE=$FILE" >> $GITHUB_ENV
-          echo "FILE_CONF=$FILE_CONF" >> $GITHUB_ENV
-          echo "FILE_BASE=$FILE_BASE_DISPLAY" >> $GITHUB_ENV
-          echo "ANDROID_TARGET_VERSION=$ANDROID_TARGET_VERSION" >> $GITHUB_ENV
-
-          # 🔥 修复curl命令语法
-          DYNAMIC_REPO_INPUT="${{ github.event.inputs.DYNAMIC_REPO }}"
-          declare -A REPOS
-          REPOS["OnePlusOSS"]="https://api.github.com/repos/OnePlusOSS/kernel_manifest"
-          REPOS["Dynamic"]="https://api.github.com/repos/${DYNAMIC_REPO_INPUT}/kernel_manifest"
-
-          FOUND_REPO=""
-          FOUND_BRANCH=""
-
-          check_repo() {
-            local OWNER=$1
-            local REPO_URL=$2
-
-            echo "🌐 尝试拉取 ${OWNER} 分支列表..."
-            BRANCHES=$(curl -s ${REPO_URL}/branches | jq -r '.[].name' || true)
-            if [[ -z "$BRANCHES" ]]; then
-              echo "⚠️ ${OWNER} 分支列表获取失败，跳过。"
-              return 1
-            fi
-            for BRANCH in $BRANCHES; do
-              XML_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/${FILE}.xml"
-              README_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/README.md"
-              if curl -sf --head "$XML_URL" > /dev/null; then
-                echo "✅ 在 ${OWNER} 找到 ${FILE}.xml (分支: $BRANCH)"
-                # 🔥 修复：正确的curl -o语法
-                curl -s -o "$XML_PATH" "$XML_URL"
-                curl -s -o "$README_PATH" "$README_URL" || true
-                FOUND_REPO="$OWNER"
-                FOUND_BRANCH="$BRANCH"
-                return 0
-              fi
-            done
-            return 1
-          }
 
           # 默认仓库寻找文件
           if check_repo "OnePlusOSS" "${REPOS["OnePlusOSS"]}"; then
@@ -338,6 +259,106 @@ jobs:
           echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
           # 提取 CPU
           CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
+      - name: Extract Manifest Info (修复版)
+        id: extract_info
+        env:
+          FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
+          ANDROID_TARGET_VERSION: ${{ github.event.inputs.ANDROID_TARGET_VERSION }}
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          
+          # 根据选择的Android版本确定文件后缀
+          case "$ANDROID_TARGET_VERSION" in
+            "12") FILE_SUFFIX="_s" ;;
+            "13") FILE_SUFFIX="_t" ;;
+            "14") FILE_SUFFIX="_u" ;;
+            "15") FILE_SUFFIX="_v" ;;
+            "16") FILE_SUFFIX="_b" ;;
+            "17") FILE_SUFFIX="_c" ;;
+            "18") FILE_SUFFIX="_?" ;;
+            "19") FILE_SUFFIX="_?" ;;
+            *) FILE_SUFFIX="_b" ;;
+          esac
+          
+          FILE="${FILE_BASE}${FILE_SUFFIX}"
+          echo "最终文件名: $FILE"
+          
+          if [[ "$FILE_BASE" =~ ^(.+)_([a-zA-Z])$ ]]; then
+            FILE_CONF="${BASH_REMATCH[1]}"
+          else
+            FILE_CONF="$FILE_BASE"
+          fi
+          FILE_BASE_DISPLAY=$(echo "$FILE_CONF" | sed -E 's/_([a-zA-Z0-9])/\U\1/g; s/^oneplus/OnePlus/; s/^realme/Realme/; s/^oppo/Oppo/')
+          mkdir -p ".repo/manifests_fallback"
+          XML_PATH=".repo/manifests_fallback/${FILE}.xml"
+          README_PATH=".repo/manifests_fallback/README.md"
+          echo "处理 FILE=$FILE, CONF=$FILE_CONF, BASE=$FILE_BASE_DISPLAY"
+          echo "FILE_CONF=$FILE_CONF" >> $GITHUB_ENV
+          echo "FILE_BASE=$FILE_BASE_DISPLAY" >> $GITHUB_ENV
+          echo "FILE=$FILE" >> $GITHUB_ENV
+
+          # 动态调用源码清单仓库
+          DYNAMIC_REPO_INPUT="${{ github.event.inputs.DYNAMIC_REPO }}"
+          declare -A REPOS
+          REPOS["OnePlusOSS"]="https://api.github.com/repos/OnePlusOSS/kernel_manifest"
+          REPOS["Dynamic"]="https://api.github.com/repos/${DYNAMIC_REPO_INPUT}/kernel_manifest"
+
+          FOUND_REPO=""
+          FOUND_BRANCH=""
+
+          check_repo() {
+            local OWNER=$1
+            local REPO_URL=$2
+
+            echo "🌐 尝试拉取 ${OWNER} 分支列表..."
+            BRANCHES=$(curl -s ${REPO_URL}/branches | jq -r '.[].name' || true)
+            if [[ -z "$BRANCHES" ]]; then
+              echo "⚠️ ${OWNER} 分支列表获取失败，跳过。"
+              return 1
+            fi
+            for BRANCH in $BRANCHES; do
+              XML_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/${FILE}.xml"
+              README_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/README.md"
+              if curl -sf --head "$XML_URL" > /dev/null; then
+                echo "✅ 在 ${OWNER} 找到 ${FILE}.xml (分支: $BRANCH)"
+                # 🔥 修复：使用正确的curl语法
+                curl -s -o "$XML_PATH" "$XML_URL"
+                curl -s -o "$README_PATH" "$README_URL" || true
+                FOUND_REPO="$OWNER"
+                FOUND_BRANCH="$BRANCH"
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          # 默认仓库寻找文件
+          if check_repo "OnePlusOSS" "${REPOS["OnePlusOSS"]}"; then
+            echo "MANIFEST_REPO=OnePlusOSS" >> $GITHUB_ENV
+            echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
+          fi
+
+          # 动态仓库寻找文件
+          if [[ -z "$FOUND_REPO" ]]; then
+            DYNAMIC_URL="${REPOS["Dynamic"]}"
+            DYNAMIC_OWNER=$(echo "$DYNAMIC_URL" | sed -E 's#https://api.github.com/repos/([^/]+)/.*#\1#')
+            if check_repo "$DYNAMIC_OWNER" "$DYNAMIC_URL"; then
+              echo "MANIFEST_REPO=$DYNAMIC_OWNER" >> $GITHUB_ENV
+              echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
+            fi
+          fi
+
+          if [[ -z "$FOUND_REPO" || ! -s "$XML_PATH" ]]; then
+            echo "❌ 无法在动态仓库中找到 ${FILE}.xml"
+            exit 1
+          fi
+
+          # 解析 revision 字符串
+          REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
+          echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
+          # 提取 CPU
+          CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
           # 提取 ANDROID_VERSION
           ANDROID_VERSION=$(echo "$REVISION" | grep -oP '\d{1,2}\.\d{1,2}(\.\d{1,2})?')
           if [[ -n "$CPU" && -n "$ANDROID_VERSION" ]]; then
@@ -346,58 +367,28 @@ jobs:
             echo "ANDROID_VERSION=$ANDROID_VERSION" >> $GITHUB_ENV
             # 获取短位 Android 版本号
             echo "ANDROID_SHORT_VERSION=${ANDROID_VERSION%%.*}" >> $GITHUB_ENV
-            
-            # 🔥 修正：基于具体机型推断内核版本
-            # 对于 oneplus_ace_3v_b，应该使用 android14 + 6.1
-            case "$FILE" in
-              *ace_3v*)
-                KANDROID_VERSION="android14"
-                KERNEL_VERSION="6.1"
-                echo "✅ 机型 $FILE: 使用 android14 + 6.1"
-                ;;
-              *ace3*)
-                KANDROID_VERSION="android15" 
-                KERNEL_VERSION="6.6"
-                echo "✅ 机型 $FILE: 使用 android15 + 6.6"
-                ;;
-              *ace2*)
-                KANDROID_VERSION="android13"
-                KERNEL_VERSION="5.15"
-                echo "✅ 机型 $FILE: 使用 android13 + 5.15"
-                ;;
-              *11*)
-                KANDROID_VERSION="android13"
-                KERNEL_VERSION="5.15"
-                echo "✅ 机型 $FILE: 使用 android13 + 5.15"
-                ;;
-              *12*)
-                KANDROID_VERSION="android14"
-                KERNEL_VERSION="6.1"
-                echo "✅ 机型 $FILE: 使用 android14 + 6.1"
-                ;;
-              *)
-                # 默认基于 Android 版本推断
-                ANDROID_SHORT="${ANDROID_VERSION%%.*}"
-                case "$ANDROID_SHORT" in
-                  16) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;  # ColorOS 16 = AOSP 14
-                  15) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;  # ColorOS 15 = AOSP 14
-                  14) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
-                  13) KANDROID_VERSION="android13"; KERNEL_VERSION="5.15" ;;
-                  12) KANDROID_VERSION="android12"; KERNEL_VERSION="5 reductio.10" ;;
-                  *) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
-                esac
-                echo "✅ 默认推断: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
-                ;;
-            esac
-            
-            echo "KANDROID_VERSION=$KANDROID_VERSION" >> $GITHUB_ENV
-            echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
           else
             echo "❌ 无法从 revision 中提取 CPU 或 ANDROID_VERSION"
             exit 1
           fi
 
-          # ... 您现有的其余代码 ...
+          echo "解析 README.md 获取 CPUD 和 BUILD_METHOD..."
+          if [[ -s "$README_PATH" ]]; then
+            BUILD_LINE=$(grep -m1 'oplus_build_kernel.sh' "$README_PATH" || true)
+            if [[ -n "$BUILD_LINE" ]]; then
+              CPUD=$(echo "$BUILD_LINE" | awk '{print $(NF-1)}')
+              BUILD_METHOD=$(echo "$BUILD_LINE" | awk '{print $NF}')
+              echo "✅ CPUD=$CPUD, BUILD_METHOD=$BUILD_METHOD"
+              echo "CPUD=$CPUD" >> $GITHUB_ENV
+              echo "BUILD_METHOD=$BUILD_METHOD" >> $GITHUB_ENV
+            else
+              echo "❌ README.md 中未找到构建命令"
+            fi
+          else
+            echo "❌ README.md 下载失败或为空"
+          fi
+          # 传递组合信息
+          echo "value=${FILE_BASE_DISPLAY}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
 
 
               
