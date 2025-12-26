@@ -193,7 +193,7 @@ jobs:
 
 
 
-            - name: Extract Manifest Info
+      - name: Extract Manifest Info
         id: extract_info
         env:
           FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
