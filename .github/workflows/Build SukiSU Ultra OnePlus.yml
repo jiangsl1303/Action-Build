@@ -789,12 +789,19 @@ jobs:
 
 
 
-      - name: Add SukiSU Ultra
+            - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
 
           KSU_META="${{ github.event.inputs.KSU_META }}"
           IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
+
+          # 🔥 修改这里改变 @HEAD 显示
+          DISPLAY_BRANCH="${{ github.event.inputs.DISPLAY_BRANCH || 'ysyz' }}"
+          
+          # ... 其余代码
+          
+          
 
           echo "分支名: $BRANCH_NAME"
           [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
@@ -833,13 +840,12 @@ jobs:
           GIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_HASH=$GIT_HASH" >> $GITHUB_ENV
 
-          DISPLAY_BRANCH="ysyz"
           if [[ -z "$CUSTOM_TAG" ]]; then
             VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$DISPLAY_BRANCH"
           else
             VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$DISPLAY_BRANCH[$USE_HASH]"
           fi
-
+          
           if [ -n "$KBUILD_PATH" ] && [ -f "$KBUILD_PATH" ]; then
             sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
