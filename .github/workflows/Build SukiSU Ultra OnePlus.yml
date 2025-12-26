@@ -789,7 +789,7 @@ jobs:
 
 
 
-            - name: Add SukiSU Ultra
+      - name: Add SukiSU Ultra
         run: |
           cd kernel_workspace/kernel_platform
 
