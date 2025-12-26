@@ -440,11 +440,53 @@ jobs:
           fi
           ccache -s
 
-      - name: Install Repo Tool
+      #- name: Install Repo Tool
+      #  run: |
+        #  curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+         # chmod a+x ~/repo
+         # sudo mv ~/repo /usr/local/bin/repo
+
+
+
+
+      - name: Initialize Repo and Sync (修复远程配置)
+        env:
+          FILE: ${{ github.event.inputs.FILE }}
         run: |
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
-          chmod a+x ~/repo
-          sudo mv ~/repo /usr/local/bin/repo
+          mkdir kernel_workspace && cd kernel_workspace
+          mkdir -p .repo/manifests
+          
+          MANIFEST_REPO="${{ env.MANIFEST_REPO }}"
+          MANIFEST_BRANCH="${{ env.MANIFEST_BRANCH }}"
+          
+          echo "=== 修复Manifest配置 ==="
+          
+          # 下载原始manifest
+          MANIFEST_URL="https://raw.githubusercontent.com/${MANIFEST_REPO}/kernel_manifest/${MANIFEST_BRANCH}/${FILE}.xml"
+          curl -s "$MANIFEST_URL" > original_manifest.xml
+          
+          # 🔥 关键修复：统一远程和分支
+          sed -i \
+            -e 's/remote="clo-la"/remote="origin"/g' \
+            -e 's|fetch="https://git.codelinaro.org/clo/la"|fetch="https://github.com/OnePlusOSS"|g' \
+            -e 's/revision="[^"]*"/revision="main"/g' \
+            -e 's/upstream="refs\/heads\/ks-kernel\.lnx\.5\.0\.r3-rel"//g' \
+            original_manifest.xml
+          
+          cp original_manifest.xml ".repo/manifests/${FILE}.xml"
+          
+          echo "修复后的Manifest关键内容:"
+          grep -E "remote|fetch|revision" ".repo/manifests/${FILE}.xml" | head -10
+          
+          BASE_URL="https://github.com/${MANIFEST_REPO}/kernel_manifest.git"
+          
+          echo "使用修复配置初始化仓库..."
+          repo init -u "$BASE_URL" -b "$MANIFEST_BRANCH" -m "${FILE}.xml" --depth=1 --no-clone-bundle --no-tags
+          repo sync -c -j2 --no-clone-bundle --no-tags --force-sync --fail-fast=false 2>&1 | tee sync.log
+
+
+
+
 
       - name: Initialize Repo and Sync
         env:
