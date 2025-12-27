@@ -427,9 +427,7 @@ jobs:
 
 
 
-
-
-      - name: Initialize Repo and Sync (参考原作者实现)
+      - name: Initialize Repo and Sync (修复路径)
         env:
           FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
           ANDROID_TARGET_VERSION: ${{ github.event.inputs.ANDROID_TARGET_VERSION }}
@@ -446,18 +444,18 @@ jobs:
             "15") FILE_SUFFIX="_v" ;;
             "16") FILE_SUFFIX="_b" ;;
             "17") FILE_SUFFIX="_c" ;;
-            *) FILE_SUFFIX="_b" ;;  # Android 16+ 使用 _b
+            *) FILE_SUFFIX="_b" ;;
           esac
           
           FILE="${FILE_BASE}${FILE_SUFFIX}"
           echo "目标文件: $FILE (Android $ANDROID_TARGET_VERSION)"
           
-          mkdir kernel_workspace && cd kernel_workspace
-          mkdir -p ".repo/manifests_fallback"
-          XML_PATH=".repo/manifests_fallback/${FILE}.xml"
-          README_PATH=".repo/manifests_fallback/README.md"
+          # 🔥 在kernel_workspace目录中创建manifests
+          mkdir -p "kernel_workspace/.repo/manifests_fallback"
+          XML_PATH="kernel_workspace/.repo/manifests_fallback/${FILE}.xml"
+          README_PATH="kernel_workspace/.repo/manifests_fallback/${FILE}.md"
           
-          # 🔥 使用原作者的动态查找逻辑
+          # 动态查找逻辑（保持不变）
           DYNAMIC_REPO_INPUT="$DYNAMIC_REPO"
           declare -A REPOS
           REPOS["OnePlusOSS"]="https://api.github.com/repos/OnePlusOSS/kernel_manifest"
@@ -491,6 +489,7 @@ jobs:
             return 1
           }
 
+  
           # 默认仓库寻找文件
           if check_repo "OnePlusOSS" "${REPOS["OnePlusOSS"]}"; then
             echo "MANIFEST_REPO=OnePlusOSS" >> $GITHUB_ENV
@@ -512,8 +511,12 @@ jobs:
             exit 1
           fi
 
-          # 使用找到的清单文件
-          cp "$XML_PATH" ".repo/manifests/${FILE}.xml"
+
+
+          # 🔥 修复：在kernel_workspace目录中操作
+          cd kernel_workspace
+          
+          cp ".repo/manifests_fallback/${FILE}.xml" ".repo/manifests/${FILE}.xml"
           
           BASE_URL="https://github.com/${MANIFEST_REPO}/kernel_manifest.git"
           
