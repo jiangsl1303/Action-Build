@@ -430,12 +430,12 @@ jobs:
 
 
 
-      - name: Initialize Repo and Sync (完整修复版)
+      - name: Initialize Repo and Sync (修复XML语法)
         env:
           FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
           ANDROID_TARGET_VERSION: ${{ github.event.inputs.ANDROID_TARGET_VERSION }}
         run: |
-          # 在同一个步骤中计算FILE并立即使用
+          # 计算文件名
           case "$ANDROID_TARGET_VERSION" in
             "12") FILE_SUFFIX="_s" ;;
             "13") FILE_SUFFIX="_t" ;;
@@ -455,30 +455,51 @@ jobs:
           mkdir -p .repo/manifests
           
           MANIFEST_REPO="OnePlusOSS"
-          MANIFEST_BRANCH="oneplus/sm8550"
+          MANIFEST_BRANCH="oneplus/sm7675"  # 🔥 注意：这里是 sm7675，不是 sm8550
           
-          echo "=== 修复Manifest配置 ==="
+          echo "=== 详细调试XML文件 ==="
           
-          # 下载并修复manifest
+          # 下载manifest并检查内容
           MANIFEST_URL="https://raw.githubusercontent.com/${MANIFEST_REPO}/kernel_manifest/${MANIFEST_BRANCH}/${FILE}.xml"
+          echo "下载URL: $MANIFEST_URL"
+          
           curl -s "$MANIFEST_URL" > original_manifest.xml
           
-          if [ ! -s "original_manifest.xml" ]; then
-            echo "❌ 下载manifest失败，尝试其他分支..."
-            # 尝试查找可用的分支
-            BRANCHES_URL="https://api.github.com/repos/${MANIFEST_REPO}/kernel_manifest/branches"
-            AVAILABLE_BRANCHES=$(curl -s "$BRANCHES_URL" | jq -r '.[].name' | head -5)
-            echo "可用分支: $AVAILABLE_BRANCHES"
-            exit 1
-          fi
+          echo "=== XML文件内容前20行 ==="
+          head -20 original_manifest.xml
           
-          # 修复远程配置
-          sed -i \
-            -e 's/remote="clo-la"/remote="origin"/g' \
-            -e 's|fetch="https://git.codelinaro.org/clo/la"|fetch="https://github.com/OnePlusOSS"|g' \
-            -e 's/revision="[^"]*"/revision="main"/g' \
-            -e 's/upstream="refs\/heads\/ks-kernel\.lnx\.5\.0\.r3-rel"//g' \
-            original_manifest.xml
+          echo "=== XML文件大小 ==="
+          ls -la original_manifest.xml
+          
+          echo "=== 文件编码 ==="
+          file original_manifest.xml
+          
+          # 检查文件是否为有效XML
+          if ! xmllint --noout original_manifest.xml 2>/dev/null; then
+            echo "❌ XML语法错误，尝试修复..."
+            
+            # 尝试修复常见的XML问题
+            # 1. 移除BOM头
+            sed -i '1s/^\xEF\xBB\xBF//' original_manifest.xml
+            
+            # 2. 确保第一行是有效的XML声明
+            if ! head -1 original_manifest.xml | grep -q '^<?xml'; then
+              echo "添加XML声明"
+              echo '<?xml version="1.0" encoding="UTF-8"?>' > temp.xml
+              cat original_manifest.xml >> temp.xml
+              mv temp.xml original_manifest.xml
+            fi
+            
+            # 再次检查
+            if xmllint --noout original_manifest.xml 2>/dev/null; then
+              echo "✅ XML修复成功"
+            else
+              echo "❌ XML修复失败，显示具体错误:"
+              xmllint --noout original_manifest.xml
+            fi
+          else
+            echo "✅ XML语法正确"
+          fi
           
           cp original_manifest.xml ".repo/manifests/${FILE}.xml"
           
@@ -489,8 +510,7 @@ jobs:
           
           repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync
           
-          echo "同步完成，检查目录结构..."
-          find . -type d -name "kernel_platform" | head -5
+          echo "同步完成"
 
 
 
