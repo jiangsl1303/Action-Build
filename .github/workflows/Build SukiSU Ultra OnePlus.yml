@@ -189,7 +189,7 @@ jobs:
 
 
 
-      - name: Extract Manifest Info (基于原作者逻辑)
+      - name: Extract Manifest Info (修复版)
         id: extract_info
         env:
           FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
@@ -198,7 +198,7 @@ jobs:
           set -e
           cd "$GITHUB_WORKSPACE"
           
-          # 根据Android版本确定文件后缀（原作者逻辑）
+          # 根据选择的Android版本确定文件后缀
           case "$ANDROID_TARGET_VERSION" in
             "12") FILE_SUFFIX="_s" ;;
             "13") FILE_SUFFIX="_t" ;;
@@ -206,31 +206,29 @@ jobs:
             "15") FILE_SUFFIX="_v" ;;
             "16") FILE_SUFFIX="_b" ;;
             "17") FILE_SUFFIX="_c" ;;
-            *) FILE_SUFFIX="_v" ;;  # 默认Android 15
+            "18") FILE_SUFFIX="_?" ;;
+            "19") FILE_SUFFIX="_?" ;;
+            *) FILE_SUFFIX="_b" ;;
           esac
           
           FILE="${FILE_BASE}${FILE_SUFFIX}"
           echo "最终文件名: $FILE"
           
-          # 原作者的文件名处理逻辑
           if [[ "$FILE_BASE" =~ ^(.+)_([a-zA-Z])$ ]]; then
             FILE_CONF="${BASH_REMATCH[1]}"
           else
             FILE_CONF="$FILE_BASE"
           fi
-          
           FILE_BASE_DISPLAY=$(echo "$FILE_CONF" | sed -E 's/_([a-zA-Z0-9])/\U\1/g; s/^oneplus/OnePlus/; s/^realme/Realme/; s/^oppo/Oppo/')
-          
           mkdir -p ".repo/manifests_fallback"
           XML_PATH=".repo/manifests_fallback/${FILE}.xml"
           README_PATH=".repo/manifests_fallback/README.md"
-          
           echo "处理 FILE=$FILE, CONF=$FILE_CONF, BASE=$FILE_BASE_DISPLAY"
-          echo "FILE=$FILE" >> $GITHUB_ENV
           echo "FILE_CONF=$FILE_CONF" >> $GITHUB_ENV
-          echo "FILE_BASE=$FILE_BASE_DISPLAY" >> $GITHUB_ENV"
+          echo "FILE_BASE=$FILE_BASE_DISPLAY" >> $GITHUB_ENV
+          echo "FILE=$FILE" >> $GITHUB_ENV
 
-          # 🔥 原作者的分支确定逻辑
+          # 动态调用源码清单仓库
           DYNAMIC_REPO_INPUT="${{ github.event.inputs.DYNAMIC_REPO }}"
           declare -A REPOS
           REPOS["OnePlusOSS"]="https://api.github.com/repos/OnePlusOSS/kernel_manifest"
@@ -254,6 +252,7 @@ jobs:
               README_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/README.md"
               if curl -sf --head "$XML_URL" > /dev/null; then
                 echo "✅ 在 ${OWNER} 找到 ${FILE}.xml (分支: $BRANCH)"
+                # 🔥 修复：使用正确的curl语法
                 curl -s -o "$XML_PATH" "$XML_URL"
                 curl -s -o "$README_PATH" "$README_URL" || true
                 FOUND_REPO="$OWNER"
@@ -264,7 +263,7 @@ jobs:
             return 1
           }
 
-          # 默认仓库寻找文件（原作者优先级逻辑）
+          # 默认仓库寻找文件
           if check_repo "OnePlusOSS" "${REPOS["OnePlusOSS"]}"; then
             echo "MANIFEST_REPO=OnePlusOSS" >> $GITHUB_ENV
             echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
@@ -285,15 +284,18 @@ jobs:
             exit 1
           fi
 
-          # 原作者的版本提取逻辑
+          # 解析 revision 字符串
           REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
           echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
+          # 提取 CPU
           CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
+          # 提取 ANDROID_VERSION
           ANDROID_VERSION=$(echo "$REVISION" | grep -oP '\d{1,2}\.\d{1,2}(\.\d{1,2})?')
           if [[ -n "$CPU" && -n "$ANDROID_VERSION" ]]; then
             echo "✅ CPU=$CPU, ANDROID_VERSION=$ANDROID_VERSION"
             echo "CPU=$CPU" >> $GITHUB_ENV
             echo "ANDROID_VERSION=$ANDROID_VERSION" >> $GITHUB_ENV
+            # 获取短位 Android 版本号
             echo "ANDROID_SHORT_VERSION=${ANDROID_VERSION%%.*}" >> $GITHUB_ENV
           else
             echo "❌ 无法从 revision 中提取 CPU 或 ANDROID_VERSION"
@@ -315,7 +317,7 @@ jobs:
           else
             echo "❌ README.md 下载失败或为空"
           fi
-          
+          # 传递组合信息
           echo "value=${FILE_BASE_DISPLAY}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
 
 
@@ -420,7 +422,6 @@ jobs:
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
           chmod a+x ~/repo
           sudo mv ~/repo /usr/local/bin/repo
-
 
 
 
