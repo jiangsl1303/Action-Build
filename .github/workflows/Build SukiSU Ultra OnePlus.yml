@@ -289,10 +289,7 @@ on:
           - oneplus_pad2_mt6991_b
           
           # oneplus_pad_2_pro Android 12-16
-          - oneplus_pad_2_pro_s
-          - oneplus_pad_2_pro_t
-          - oneplus_pad_2_pro_u
-          - oneplus_pad_2_pro_v
+          - oneplus_pad_2_pro
           - oneplus_pad_2_pro_b
           
           # oneplus_pad_3 Android 12-16
