@@ -177,10 +177,7 @@ on:
           - oneplus_ace5_b
           
           # oneplus_ace5_pro Android 12-16
-          - oneplus_ace5_pro_s
-          - oneplus_ace5_pro_t
-          - oneplus_ace5_pro_u
-          - oneplus_ace5_pro_v
+          - oneplus_ace5_pro
           - oneplus_ace5_pro_b
           
           # oneplus_ace5_race Android 12-16
