@@ -428,12 +428,16 @@ jobs:
 
 
 
-      - name: Initialize Repo and Sync (修复XML语法)
+      - name: Initialize Repo and Sync (参考原作者实现)
         env:
           FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
           ANDROID_TARGET_VERSION: ${{ github.event.inputs.ANDROID_TARGET_VERSION }}
+          DYNAMIC_REPO: ${{ github.event.inputs.DYNAMIC_REPO }}
         run: |
-          # 计算文件名
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          
+          # 计算文件名后缀
           case "$ANDROID_TARGET_VERSION" in
             "12") FILE_SUFFIX="_s" ;;
             "13") FILE_SUFFIX="_t" ;;
@@ -441,75 +445,82 @@ jobs:
             "15") FILE_SUFFIX="_v" ;;
             "16") FILE_SUFFIX="_b" ;;
             "17") FILE_SUFFIX="_c" ;;
-            "18") FILE_SUFFIX="_?" ;;
-            "19") FILE_SUFFIX="_?" ;;
-            *) FILE_SUFFIX="_b" ;;
+            *) FILE_SUFFIX="_b" ;;  # Android 16+ 使用 _b
           esac
           
           FILE="${FILE_BASE}${FILE_SUFFIX}"
-          echo "使用的文件名: $FILE"
+          echo "目标文件: $FILE (Android $ANDROID_TARGET_VERSION)"
           
           mkdir kernel_workspace && cd kernel_workspace
-          mkdir -p .repo/manifests
+          mkdir -p ".repo/manifests_fallback"
+          XML_PATH=".repo/manifests_fallback/${FILE}.xml"
+          README_PATH=".repo/manifests_fallback/README.md"
           
-          MANIFEST_REPO="OnePlusOSS"
-          MANIFEST_BRANCH="oneplus/sm7675"  # 🔥 注意：这里是 sm7675，不是 sm8550
-          
-          echo "=== 详细调试XML文件 ==="
-          
-          # 下载manifest并检查内容
-          MANIFEST_URL="https://raw.githubusercontent.com/${MANIFEST_REPO}/kernel_manifest/${MANIFEST_BRANCH}/${FILE}.xml"
-          echo "下载URL: $MANIFEST_URL"
-          
-          curl -s "$MANIFEST_URL" > original_manifest.xml
-          
-          echo "=== XML文件内容前20行 ==="
-          head -20 original_manifest.xml
-          
-          echo "=== XML文件大小 ==="
-          ls -la original_manifest.xml
-          
-          echo "=== 文件编码 ==="
-          file original_manifest.xml
-          
-          # 检查文件是否为有效XML
-          if ! xmllint --noout original_manifest.xml 2>/dev/null; then
-            echo "❌ XML语法错误，尝试修复..."
-            
-            # 尝试修复常见的XML问题
-            # 1. 移除BOM头
-            sed -i '1s/^\xEF\xBB\xBF//' original_manifest.xml
-            
-            # 2. 确保第一行是有效的XML声明
-            if ! head -1 original_manifest.xml | grep -q '^<?xml'; then
-              echo "添加XML声明"
-              echo '<?xml version="1.0" encoding="UTF-8"?>' > temp.xml
-              cat original_manifest.xml >> temp.xml
-              mv temp.xml original_manifest.xml
+          # 🔥 使用原作者的动态查找逻辑
+          DYNAMIC_REPO_INPUT="$DYNAMIC_REPO"
+          declare -A REPOS
+          REPOS["OnePlusOSS"]="https://api.github.com/repos/OnePlusOSS/kernel_manifest"
+          REPOS["Dynamic"]="https://api.github.com/repos/${DYNAMIC_REPO_INPUT}/kernel_manifest"
+
+          FOUND_REPO=""
+          FOUND_BRANCH=""
+
+          check_repo() {
+            local OWNER=$1
+            local REPO_URL=$2
+
+            echo "🌐 尝试拉取 ${OWNER} 分支列表..."
+            BRANCHES=$(curl -s ${REPO_URL}/branches | jq -r '.[].name' || true)
+            if [[ -z "$BRANCHES" ]]; then
+              echo "⚠️ ${OWNER} 分支列表获取失败，跳过。"
+              return 1
             fi
-            
-            # 再次检查
-            if xmllint --noout original_manifest.xml 2>/dev/null; then
-              echo "✅ XML修复成功"
-            else
-              echo "❌ XML修复失败，显示具体错误:"
-              xmllint --noout original_manifest.xml
-            fi
-          else
-            echo "✅ XML语法正确"
+            for BRANCH in $BRANCHES; do
+              XML_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/${FILE}.xml"
+              README_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/README.md"
+              if curl -sf --head "$XML_URL" > /dev/null; then
+                echo "✅ 在 ${OWNER} 找到 ${FILE}.xml (分支: $BRANCH)"
+                curl -s -o "$XML_PATH" "$XML_URL"
+                curl -s -o "$README_PATH" "$README_URL" || true
+                FOUND_REPO="$OWNER"
+                FOUND_BRANCH="$BRANCH"
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          # 默认仓库寻找文件
+          if check_repo "OnePlusOSS" "${REPOS["OnePlusOSS"]}"; then
+            echo "MANIFEST_REPO=OnePlusOSS" >> $GITHUB_ENV
+            echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
           fi
-          
-          cp original_manifest.xml ".repo/manifests/${FILE}.xml"
+
+          # 动态仓库寻找文件
+          if [[ -z "$FOUND_REPO" ]]; then
+            DYNAMIC_URL="${REPOS["Dynamic"]}"
+            DYNAMIC_OWNER=$(echo "$DYNAMIC_URL" | sed -E 's#https://api.github.com/repos/([^/]+)/.*#\1#')
+            if check_repo "$DYNAMIC_OWNER" "$DYNAMIC_URL"; then
+              echo "MANIFEST_REPO=$DYNAMIC_OWNER" >> $GITHUB_ENV
+              echo "MANIFEST_BRANCH=$FOUND_BRANCH" >> $GITHUB_ENV
+            fi
+          fi
+
+          if [[ -z "$FOUND_REPO" || ! -s "$XML_PATH" ]]; then
+            echo "❌ 无法在动态仓库中找到 ${FILE}.xml"
+            exit 1
+          fi
+
+          # 使用找到的清单文件
+          cp "$XML_PATH" ".repo/manifests/${FILE}.xml"
           
           BASE_URL="https://github.com/${MANIFEST_REPO}/kernel_manifest.git"
           
-          echo "使用修复配置初始化仓库..."
+          echo "使用 ${MANIFEST_REPO}/${MANIFEST_BRANCH} 初始化仓库..."
           repo init -u "$BASE_URL" -b "$MANIFEST_BRANCH" -m "${FILE}.xml" --depth=1 --no-clone-bundle --no-tags
-          
           repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync
           
-          echo "同步完成"
-
+          echo "✅ 仓库初始化完成"
 
 
 
