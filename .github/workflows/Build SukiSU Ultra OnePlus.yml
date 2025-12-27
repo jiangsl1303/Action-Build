@@ -2,59 +2,306 @@ name: Build OnePlus_SukiSU Ultra All
 on:
   workflow_dispatch:
     inputs:
-      FILE_BASE:
+      FILE:
         type: choice
-        description: "基础机型配置"
+        description: "配置文件"
         required: true
-        default: "oneplus_ace2_pro"
+        default: oneplus_ace2_pro_b
         options:
-          - oneplus_nord_ce4_lite_5g
-          - oneplus_nord_ce4
-          - oneplus_nord_4
-          - oneplus_ace_3v
-          - oneplus_10_pro
-          - oneplus_10t
-          - oneplus_11r
-          - oneplus_ace2
-          - oneplus_ace_pro
-          - oneplus_11
-          - oneplus_12r
-          - oneplus_ace3
-          - oneplus_open
-          - oneplus_12
-          - oneplus_13r
-          - oneplus_ace3_pro
-          - oneplus_ace5
-          - oneplus_pad_pro
-          - oneplus_pad2
-          - oneplus_nord_5
-          - oneplus_ace5_pro
-          - oneplus_13
-          - oneplus_13t
-          - oneplus_13s
-          - oneplus_pad_2_pro
-          - oneplus_pad_3
-          - oneplus_ace5_ultra
-          - oneplus_pad2_mt6991
-          - oneplus_ace_6
-          - oneplus_ace_6t
-          - oneplus_15
+          # oneplus_10_pro Android 12-16
+          - oneplus_10_pro_s
+          - oneplus_10_pro_t
+          - oneplus_10_pro_u
+          - oneplus_10_pro_v
+          - oneplus_10_pro_b
           
-      ANDROID_TARGET_VERSION:
-        type: choice
-        description: "目标Android版本"
-        required: true
-        default: "16"
-        options:
-          - "12"
-          - "13" 
-          - "14"
-          - "15"
-          - "16"
-          - "17"
-          - "18"
-          - "19"
+          # oneplus_10r Android 12-16
+          - oneplus_10r_s
+          - oneplus_10r_t
+          - oneplus_10r_u
+          - oneplus_10r_v
+          - oneplus_10r_b
           
+          # oneplus_10t Android 12-16
+          - oneplus_10t_s
+          - oneplus_10t_t
+          - oneplus_10t_u
+          - oneplus_10t_v
+          - oneplus_10t_b
+          
+          # oneplus_11 Android 12-16
+          - oneplus_11_s
+          - oneplus_11_t
+          - oneplus_11_u
+          - oneplus_11_v
+          - oneplus_11_b
+          
+          # oneplus_11r Android 12-16
+          - oneplus_11r_s
+          - oneplus_11r_t
+          - oneplus_11r_u
+          - oneplus_11r_v
+          - oneplus_11r_b
+          
+          # oneplus_12 Android 12-16
+          - oneplus_12_s
+          - oneplus_12_t
+          - oneplus_12_u
+          - oneplus_12_v
+          - oneplus_12_b
+          
+          # oneplus_12r Android 12-16
+          - oneplus_12r_s
+          - oneplus_12r_t
+          - oneplus_12r_u
+          - oneplus_12r_v
+          - oneplus_12r_b
+          
+          # oneplus_13 Android 12-16
+          - oneplus_13_s
+          - oneplus_13_t
+          - oneplus_13_u
+          - oneplus_13_v
+          - oneplus_13_b
+          
+          # oneplus_13r Android 12-16
+          - oneplus_13r_s
+          - oneplus_13r_t
+          - oneplus_13r_u
+          - oneplus_13r_v
+          - oneplus_13r_b
+          
+          # oneplus_13s Android 12-16
+          - oneplus_13s_s
+          - oneplus_13s_t
+          - oneplus_13s_u
+          - oneplus_13s_v
+          - oneplus_chains_sb
+          
+          # oneplus_13t Android 12-16
+          - oneplus_13t_s
+          - oneplus_13t_t
+          - oneplus_13t_u
+          - oneplus_13t_v
+          - oneplus_13t_b
+          
+          # oneplus_15 Android 12-16
+          - oneplus_15_s
+          - oneplus_15_t
+          - oneplus_15_u
+          - oneplus_15_v
+          - oneplus_15_b
+          
+          # oneplus_ace Android 12-16
+          - oneplus_ace_s
+          - oneplus_ace_t
+          - oneplus_ace_u
+          - oneplus_ace_v
+          - oneplus_ace_b
+          
+          # oneplus_ace_2v Android 12-16
+          - oneplus_ace_2v_s
+          - oneplus_ace_2v_t
+          - oneplus_ace_2v_u
+          - oneplus_ace_2v_v
+          - oneplus_ace_2v_b
+          
+          # oneplus_ace_3v Android 12-16
+          - oneplus_ace_3v_s
+          - oneplus_ace_3v_t
+          - oneplus_ace_3v_u
+          - oneplus_ace_3v_v
+          - oneplus_ace_3v_b
+          
+          # oneplus_ace_6 Android 12-16
+          - oneplus_ace_6_s
+          - oneplus_ace_6_t
+          - oneplus_ace_6_u
+          - oneplus_ace_6_v
+          - oneplus_ace_6_b
+          
+          # oneplus_ace_6t Android 12-16
+          - oneplus_ace_6t_s
+          - oneplus_ace_6t_t
+          - oneplus_ace_6t_u
+          - oneplus_ace_6t_v
+          - oneplus_ace_6t_b
+          
+          # oneplus_ace_pro Android 12-16
+          - oneplus_ace_pro_s
+          - oneplus_ace_pro_t
+          - oneplus_ace_pro_u
+          - oneplus_ace_pro_v
+          - oneplus_ace_pro_b
+          
+          # oneplus_ace_race Android 12-16
+          - oneplus_ace_race_s
+          - oneplus_ace_race_t
+          - oneplus_ace_race_u
+          - oneplus_ace_race_v
+          - oneplus_ace_race_b
+          
+          # oneplus_ace2 Android 12-16
+          - oneplus_ace2_s
+          - oneplus_ace2_t
+          - oneplus_ace2_u
+          - oneplus_ace2_v
+          - oneplus_ace2_b
+          
+          # oneplus_ace2_pro Android 12-16
+          - oneplus_ace2_pro_s
+          - oneplus_ace2_pro_t
+          - oneplus_ace2_pro_u
+          - oneplus_ace2_pro_v
+          - oneplus_ace2_pro_b
+          
+          # oneplus_ace3 Android 12-16
+          - oneplus_ace3_s
+          - oneplus_ace3_t
+          - oneplus_ace3_u
+          - oneplus_ace3_v
+          - oneplus_ace3_b
+          
+          # oneplus_ace3_pro Android 12-16
+          - oneplus_ace3_pro_s
+          - oneplus_ace3_pro_t
+          - oneplus_ace3_pro_u
+          - oneplus_ace3_pro_v
+          - oneplus_ace3_pro_b
+          
+          # oneplus_ace5 Android 12-16
+          - oneplus_ace5_s
+          - oneplus_ace5_t
+          - oneplus_ace5_u
+          - oneplus_ace5_v
+          - oneplus_ace5_b
+          
+          # oneplus_ace5_pro Android 12-16
+          - oneplus_ace5_pro_s
+          - oneplus_ace5_pro_t
+          - oneplus_ace5_pro_u
+          - oneplus_ace5_pro_v
+          - oneplus_ace5_pro_b
+          
+          # oneplus_ace5_race Android 12-16
+          - oneplus_ace5_race_s
+          - oneplus_ace5_race_t
+          - oneplus_ace5_race_u
+          - oneplus_ace5_race_v
+          - oneplus_ace5_race_b
+          
+          # oneplus_ace5_ultra Android 12-16
+          - oneplus_ace5_ultra_s
+          - oneplus_ace5_ultra_t
+          - oneplus_ace5_ultra_u
+          - oneplus_ace5_ultra_v
+          - oneplus_ace5_ultra_b
+          
+          # oneplus_nord_3 Android 12-16
+          - oneplus_nord_3_s
+          - oneplus_nord_3_t
+          - oneplus_nord_3_u
+          - oneplus_nord_3_v
+          - oneplus_nord_3_b
+          
+          # oneplus_nord_4 Android 12-16
+          - oneplus_nord_4_s
+          - oneplus_nord_4_t
+          - oneplus_nord_4_u
+          - oneplus_nord_4_v
+          - oneplus_nord_4_b
+          
+          # oneplus_nord_5 Android 12-16
+          - oneplus_nord_5_s
+          - oneplus_nord_5_t
+          - oneplus_nord_5_u
+          - oneplus_nord_5_v
+          - oneplus_nord_5_b
+          
+          # oneplus_nord_ce4 Android 12-16
+          - oneplus_nord_ce۴_s
+          - oneplus_nord_ce4_t
+          - oneplus_nord_ce4_u
+          - oneplus_nord_ce4_v
+          - oneplus_nord_ce4_b
+          
+          # oneplus_nord_ce4_lite_5g Android 12-16
+          - oneplus_nord_ce4_lite_5g_s
+          - oneplus_nord_ce4_lite_5g_t
+          - oneplus_nord_ce4_lite_5g_u
+          - oneplus_nord_ce4_lite_5g_v
+          - oneplus_nord_ce4_lite_5g_b
+          
+          # oneplus_nord_ce5 Android 12-16
+          - oneplus_nord_ce5_s
+          - oneplus_nord_ce5_t
+          - oneplus_nord_ce5_u
+          - oneplus_nord_ce5_v
+          - oneplus_nord_ce5_b
+          
+          # oneplus_open Android 12-16
+          - oneplus_open_s
+          - oneplus_open_t
+          - oneplus_open_u
+          - oneplus_open_v
+          - oneplus_open_b
+          
+          # oneplus_pad_lite Android 12-16
+          - oneplus_pad_lite_s
+          - oneplus_pad_lite_t
+          - oneplus_pad_lite_u
+          - oneplus_pad_lite_v
+          - oneplus_pad_lite_b
+          
+          # oneplus_pad_mt6897 Android 12-16
+          - oneplus_pad_mt6897_s
+          - oneplus_pad_mt6897_t
+          - oneplus_pad_mt6897_u
+          - oneplus_pad_mt6897_v
+          - oneplus_pad_mt6897_b
+          
+          # oneplus_pad_mt6983 Android 12-16
+          - oneplus_pad_mt6983_s
+          - oneplus_pad_mt6983_t
+          - oneplus_pad_mt6983_u
+          - oneplus_pad_mt6983_v
+          - oneplus_pad_mt6983_b
+          
+          # oneplus_pad_pro Android 12-16
+          - oneplus_pad_pro_s
+          - oneplus_pad_pro_t
+          - oneplus_pad_pro_u
+          - oneplus_pad_pro_v
+          - oneplus_pad_pro_b
+          
+          # oneplus_pad2 Android 12-16
+          - oneplus_pad2_s
+          - oneplus_pad2_t
+          - oneplus_pad2_u
+          - oneplus_pad2_v
+          - oneplus_pad2_b
+          
+          # oneplus_pad2_mt6991 Android 12-16
+          - oneplus_pad2_mt6991_s
+          - oneplus_pad2_mt6991_t
+          - oneplus_pad2_mt6991_u
+          - oneplus_pad2_mt6991_v
+          - oneplus_pad2_mt6991_b
+          
+          # oneplus_pad_2_pro Android 12-16
+          - oneplus_pad_2_pro_s
+          - oneplus_pad_2_pro_t
+          - oneplus_pad_2_pro_u
+          - oneplus_pad_2_pro_v
+          - oneplus_pad_2_pro_b
+          
+          # oneplus_pad_3 Android 12-16
+          - oneplus_pad_3_s
+          - oneplus_pad_3_t
+          - oneplus_pad_3_u
+          - oneplus_pad_3_v
+          - oneplus_pad_3_b
+
 
 
 
@@ -187,48 +434,30 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
-
-
-      - name: Extract Manifest Info (修复版)
+      - name: Extract Manifest Info
         id: extract_info
         env:
-          FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
-          ANDROID_TARGET_VERSION: ${{ github.event.inputs.ANDROID_TARGET_VERSION }}
+          FILE: ${{ github.event.inputs.FILE }}
         run: |
           set -e
           cd "$GITHUB_WORKSPACE"
-          
-          # 根据选择的Android版本确定文件后缀
-          case "$ANDROID_TARGET_VERSION" in
-            "12") FILE_SUFFIX="_s" ;;
-            "13") FILE_SUFFIX="_t" ;;
-            "14") FILE_SUFFIX="_u" ;;
-            "15") FILE_SUFFIX="_v" ;;
-            "16") FILE_SUFFIX="_b" ;;
-            "17") FILE_SUFFIX="_c" ;;
-            "18") FILE_SUFFIX="_?" ;;
-            "19") FILE_SUFFIX="_?" ;;
-            *) FILE_SUFFIX="_b" ;;
-          esac
-          
-          FILE="${FILE_BASE}${FILE_SUFFIX}"
-          echo "最终文件名: $FILE"
-          
-          if [[ "$FILE_BASE" =~ ^(.+)_([a-zA-Z])$ ]]; then
+          if [[ "$FILE" =~ ^(.+)_([a-zA-Z])$ ]]; then
             FILE_CONF="${BASH_REMATCH[1]}"
           else
-            FILE_CONF="$FILE_BASE"
+            FILE_CONF="$FILE"
           fi
-          FILE_BASE_DISPLAY=$(echo "$FILE_CONF" | sed -E 's/_([a-zA-Z0-9])/\U\1/g; s/^oneplus/OnePlus/; s/^realme/Realme/; s/^oppo/Oppo/')
+          FILE_BASE=$(echo "$FILE_CONF" | sed -E 's/_([a-zA-Z0-9])/\U\1/g; s/^oneplus/OnePlus/; s/^realme/Realme/; s/^oppo/Oppo/')
           mkdir -p ".repo/manifests_fallback"
           XML_PATH=".repo/manifests_fallback/${FILE}.xml"
           README_PATH=".repo/manifests_fallback/README.md"
-          echo "处理 FILE=$FILE, CONF=$FILE_CONF, BASE=$FILE_BASE_DISPLAY"
+          echo "处理 FILE=$FILE, CONF=$FILE_CONF, BASE=$FILE_BASE"
           echo "FILE_CONF=$FILE_CONF" >> $GITHUB_ENV
-          echo "FILE_BASE=$FILE_BASE_DISPLAY" >> $GITHUB_ENV
-          echo "FILE=$FILE" >> $GITHUB_ENV
+          echo "FILE_BASE=$FILE_BASE" >> $GITHUB_ENV
 
-          # 动态调用源码清单仓库
+
+
+
+          # 动态调用源码清单仓库，仓库优先级：1️⃣ OnePlusOSS → 2️⃣ Numbersf(可换)
           DYNAMIC_REPO_INPUT="${{ github.event.inputs.DYNAMIC_REPO }}"
           declare -A REPOS
           REPOS["OnePlusOSS"]="https://api.github.com/repos/OnePlusOSS/kernel_manifest"
@@ -252,7 +481,6 @@ jobs:
               README_URL="https://raw.githubusercontent.com/${OWNER}/kernel_manifest/$BRANCH/README.md"
               if curl -sf --head "$XML_URL" > /dev/null; then
                 echo "✅ 在 ${OWNER} 找到 ${FILE}.xml (分支: $BRANCH)"
-                # 🔥 修复：使用正确的curl语法
                 curl -s -o "$XML_PATH" "$XML_URL"
                 curl -s -o "$README_PATH" "$README_URL" || true
                 FOUND_REPO="$OWNER"
@@ -318,23 +546,80 @@ jobs:
             echo "❌ README.md 下载失败或为空"
           fi
           # 传递组合信息
-          echo "value=${FILE_BASE_DISPLAY}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
 
 
+          # 解析 revision 字符串
+          REVISION=$(grep -oP '<project[^>]+revision="\K[^"]+' "$XML_PATH" | head -n1 || true)
+          echo "解析 FILE 获取 CPU 和 ANDROID_VERSION..."
+          # 提取 CPU
+          CPU=$(echo "$REVISION" | sed -E 's#^(oneplus|realme|oppo)/([^_]+).*#\2#')
+          # 提取 ANDROID_VERSION
+          ANDROID_VERSION=$(echo "$REVISION" | grep -oP '\d{1,2}\.\d{1,2}(\.\d{1,2})?')
+          if [[ -n "$CPU" && -n "$ANDROID_VERSION" ]]; then
+            echo "✅ CPU=$CPU, ANDROID_VERSION=$ANDROID_VERSION"
+            echo "CPU=$CPU" >> $GITHUB_ENV
+            echo "ANDROID_VERSION=$ANDROID_VERSION" >> $GITHUB_ENV
+            # 获取短位 Android 版本号
+            echo "ANDROID_SHORT_VERSION=${ANDROID_VERSION%%.*}" >> $GITHUB_ENV
+            
+            # 🔥 修正：基于具体机型推断内核版本
+            # 对于 oneplus_ace_3v_b，应该使用 android14 + 6.1
+            case "$FILE" in
+              *ace_3v*)
+                KANDROID_VERSION="android14"
+                KERNEL_VERSION="6.1"
+                echo "✅ 机型 $FILE: 使用 android14 + 6.1"
+                ;;
+              *ace3*)
+                KANDROID_VERSION="android15" 
+                KERNEL_VERSION="6.6"
+                echo "✅ 机型 $FILE: 使用 android15 + 6.6"
+                ;;
+              *ace2*)
+                KANDROID_VERSION="android13"
+                KERNEL_VERSION="5.15"
+                echo "✅ 机型 $FILE: 使用 android13 + 5.15"
+                ;;
+              *11*)
+                KANDROID_VERSION="android13"
+                KERNEL_VERSION="5.15"
+                echo "✅ 机型 $FILE: 使用 android13 + 5.15"
+                ;;
+              *12*)
+                KANDROID_VERSION="android14"
+                KERNEL_VERSION="6.1"
+                echo "✅ 机型 $FILE: 使用 android14 + 6.1"
+                ;;
+              *)
+                # 默认基于 Android 版本推断
+                ANDROID_SHORT="${ANDROID_VERSION%%.*}"
+                case "$ANDROID_SHORT" in
+                  16) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;  # ColorOS 16 = AOSP 14
+                  15) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;  # ColorOS 15 = AOSP 14
+                  14) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
+                  13) KANDROID_VERSION="android13"; KERNEL_VERSION="5.15" ;;
+                  12) KANDROID_VERSION="android12"; KERNEL_VERSION="5 reductio.10" ;;
+                  *) KANDROID_VERSION="android14"; KERNEL_VERSION="6.1" ;;
+                esac
+                echo "✅ 默认推断: KANDROID_VERSION=$KANDROID_VERSION, KERNEL_VERSION=$KERNEL_VERSION"
+                ;;
+            esac
+            
+            echo "KANDROID_VERSION=$KANDROID_VERSION" >> $GITHUB_ENV
+            echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+          else
+            echo "❌ 无法从 revision 中提取 CPU 或 ANDROID_VERSION"
+            exit 1
+          fi
 
-
+          # ... 您现有的其余代码 ...
 
 
               
 
       - name: Debug Show Selected Inputs
         run: |
-          echo "-----------------------"
-          echo "目标Android版本: ${{ env.ANDROID_TARGET_VERSION }}"
-          echo "最终文件名: ${{ env.FILE }}"
-          echo "基础机型: ${{ env.FILE_BASE }}"
-          echo "文件后缀: ${{ env.FILE }}"
-          # ... 其他调试信息
           echo "-----------------------"
           echo "Selected CPU: ${{ env.CPU }}"
           echo "Selected CPUD: ${{ env.CPUD }}"
@@ -423,13 +708,9 @@ jobs:
           chmod a+x ~/repo
           sudo mv ~/repo /usr/local/bin/repo
 
-
-
-
-
-      - name: Initialize Repo and Sync (修复路径)
+      - name: Initialize Repo and Sync
         env:
-          FILE_BASE: ${{ github.event.inputs.FILE_BASE }}
+          FILE: ${{ github.event.inputs.FILE }}
         run: |
           mkdir kernel_workspace && cd kernel_workspace
           mkdir -p .repo/manifests
@@ -455,8 +736,6 @@ jobs:
           done
 
 
-
-      
 
 
 
@@ -756,13 +1035,6 @@ jobs:
           KSU_META="${{ github.event.inputs.KSU_META }}"
           IFS='/' read -r BRANCH_NAME CUSTOM_TAG MANUAL_HASH <<< "$KSU_META"
 
-          # 🔥 修改这里改变 @HEAD 显示
-          DISPLAY_BRANCH="${{ github.event.inputs.DISPLAY_BRANCH || 'ysyz' }}"
-          
-          # ... 其余代码
-          
-          
-
           echo "分支名: $BRANCH_NAME"
           [[ -n "$CUSTOM_TAG" ]] && echo "自定义版本标识: $CUSTOM_TAG" || echo "自定义版本标识: 未启用"
           [[ -n "$MANUAL_HASH" ]] && echo "手动指定 hash: $MANUAL_HASH" || echo "手动指定 hash: 未启用"
@@ -800,12 +1072,13 @@ jobs:
           GIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_HASH=$GIT_HASH" >> $GITHUB_ENV
 
+          DISPLAY_BRANCH="ysyz"
           if [[ -z "$CUSTOM_TAG" ]]; then
             VERSION_FULL="v$KSU_API_VERSION-$USE_HASH@$DISPLAY_BRANCH"
           else
             VERSION_FULL="v$KSU_API_VERSION-$CUSTOM_TAG@$DISPLAY_BRANCH[$USE_HASH]"
           fi
-          
+
           if [ -n "$KBUILD_PATH" ] && [ -f "$KBUILD_PATH" ]; then
             sed -i '/define get_ksu_version_full/,/endef/d' "$KBUILD_PATH" 2>/dev/null || true
             sed -i '/KSU_VERSION_API :=/d' "$KBUILD_PATH" 2>/dev/null || true
@@ -845,10 +1118,8 @@ jobs:
 
       - name: Apply Patches SukiSU Ultra
         env:
-          FILE: ${{ env.FILE }}  # 🔥 改为使用环境变量
+          FILE: ${{ github.event.inputs.FILE }}
         run: |
-          # ... 步骤内容
-
           cd kernel_workspace
           SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
           
@@ -1050,43 +1321,6 @@ jobs:
           echo "正在打OGKI转换GKI补丁"
           patch -p1 -F 3 < hmbird_patch.patch
           echo "OGKI转换GKI_patch完成"
-
-
-
-
-
-
-      - name: Install Full Toolchain
-        uses: awalsh128/cache-apt-pkgs-action@latest 
-        with: 
-          packages: >
-            llvm
-            lld
-            clang
-            binutils
-            gcc-aarch64-linux-gnu
-            gcc-x86-64-linux-gnu
-            libelf-dev
-            build-essential
-            flex
-            bison
-            libssl-dev
-            libncurses-dev
-            liblz4-tool
-            zlib1g-dev
-            libxml2-utils
-            rsync
-            unzip
-            gawk
-            dos2unix
-          execute_install_scripts: true
-
-
-
-
-
-
-
 
       - name: Apply ZRAM
         if: ${{ github.event.inputs.ZRAM == 'true' }}
@@ -1452,27 +1686,16 @@ jobs:
           curl -fL -H "Authorization: token $GITHUB_TOKEN" -o "${ARTIFACT_NAME}.zip" "$artifact_url"
           unzip -j "${ARTIFACT_NAME}.zip" "*.apk" -d ./AnyKernel3/
 
-
-
-
-
-
       - name: Set zip Suffix
         id: suffix
         run: |
-          ANDROID_VERSION="${{ env.ANDROID_TARGET_VERSION }}"
-          echo "value=_A${ANDROID_VERSION}${{ github.event.inputs.ZRAM == 'true' && '_LZ4KD' || '' }}${{ github.event.inputs.KPM == 'true' && '_KPM' || '' }}${{ github.event.inputs.LSM == 'true' && '_LSM' || '' }}_ILH${{ github.event.inputs.SCHED== 'true' && '_SCHED' || '' }}" >> $GITHUB_OUTPUT
+          echo "value=${{ github.event.inputs.ZRAM == 'true' && '_LZ4KD' || '' }}${{ github.event.inputs.KPM == 'true' && '_KPM' || '' }}${{ github.event.inputs.LSM == 'true' && '_LSM' || '' }}_ILH${{ github.event.inputs.SCHED== 'true' && '_SCHED' || '' }}" >> $GITHUB_OUTPUT
 
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
         with:
-          name: AnyKernel3_SukiSUUltra_${{ env.KSUVER }}_${{ steps.extract_info.outputs.value }}_A${{ env.ANDROID_TARGET_VERSION }}(${{ env.TKERNEL_VERSION }})${{ steps.suffix.outputs.value }}
+          name: AnyKernel3_SukiSUUltra_${{ env.KSUVER }}_${{ steps.extract_info.outputs.value }}(${{ env.TKERNEL_VERSION }})${{ steps.suffix.outputs.value }}
           path: ./AnyKernel3/*
-
-
-
-
-
 
       - name: Download and Unzip ZRAM
         if: ${{ github.event.inputs.ZRAM == 'true' }}
