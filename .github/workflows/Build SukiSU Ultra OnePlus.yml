@@ -8,48 +8,302 @@ on:
         required: true
         default: oneplus_ace2_pro_b
         options:
-          - oneplus_10r_v
-          - oneplus_nord_3_v
-          - oneplus_ace_v
-          - oneplus_ace_race_v
+          # oneplus_10_pro Android 12-16
+          - oneplus_10_pro_s
+          - oneplus_10_pro_t
+          - oneplus_10_pro_u
           - oneplus_10_pro_v
+          - oneplus_10_pro_b
+          
+          # oneplus_10r Android 12-16
+          - oneplus_10r_s
+          - oneplus_10r_t
+          - oneplus_10r_u
+          - oneplus_10r_v
+          - oneplus_10r_b
+          
+          # oneplus_10t Android 12-16
+          - oneplus_10t_s
+          - oneplus_10t_t
+          - oneplus_10t_u
           - oneplus_10t_v
-          - oneplus_11r_v
-          - oneplus_ace2_v
-          - oneplus_pad_lite_v
-          - oneplus_pad_mt6983_v
-          - oneplus_ace_2v_v
-          - oneplus_ace_pro_v
+          - oneplus_10t_b
+          
+          # oneplus_11 Android 12-16
+          - oneplus_11_s
+          - oneplus_11_t
+          - oneplus_11_u
+          - oneplus_11_v
           - oneplus_11_b
-          - oneplus_12r_b
-          - oneplus_ace2_pro_b
-          - oneplus_ace3_b
-          - oneplus_open_b
-          - oneplus_nord_ce4_v
+          
+          # oneplus_11r Android 12-16
+          - oneplus_11r_s
+          - oneplus_11r_t
+          - oneplus_11r_u
+          - oneplus_11r_v
+          - oneplus_11r_b
+          
+          # oneplus_12 Android 12-16
+          - oneplus_12_s
+          - oneplus_12_t
+          - oneplus_12_u
+          - oneplus_12_v
           - oneplus_12_b
-          - oneplus_nord_ce4_lite_5g_v
-          - oneplus_nord_4_b
-          - oneplus_ace_3v_b
-          - oneplus_pad_mt6897_v
-          - oneplus_13r_b
-          - oneplus_ace3_pro_b
-          - oneplus_ace5_b
-          - oneplus_pad_pro_b
-          - oneplus_pad2_b
-          - oneplus_nord_ce5_b
-          - oneplus_nord_5_b
-          - oneplus_ace5_pro_b
+          
+          # oneplus_12r Android 12-16
+          - oneplus_12r_s
+          - oneplus_12r_t
+          - oneplus_12r_u
+          - oneplus_12r_v
+          - oneplus_12r_b
+          
+          # oneplus_13 Android 12-16
+          - oneplus_13_s
+          - oneplus_13_t
+          - oneplus_13_u
+          - oneplus_13_v
           - oneplus_13_b
+          
+          # oneplus_13r Android 12-16
+          - oneplus_13r_s
+          - oneplus_13r_t
+          - oneplus_13r_u
+          - oneplus_13r_v
+          - oneplus_13r_b
+          
+          # oneplus_13s Android 12-16
+          - oneplus_13s_s
+          - oneplus_13s_t
+          - oneplus_13s_u
+          - oneplus_13s_v
+          - oneplus_chains_sb
+          
+          # oneplus_13t Android 12-16
+          - oneplus_13t_s
+          - oneplus_13t_t
+          - oneplus_13t_u
+          - oneplus_13t_v
           - oneplus_13t_b
-          - oneplus_13s_b
-          - oneplus_pad_2_pro_b
-          - oneplus_pad_3_b
+          
+          # oneplus_15 Android 12-16
+          - oneplus_15_s
+          - oneplus_15_t
+          - oneplus_15_u
+          - oneplus_15_v
+          - oneplus_15_b
+          
+          # oneplus_ace Android 12-16
+          - oneplus_ace_s
+          - oneplus_ace_t
+          - oneplus_ace_u
+          - oneplus_ace_v
+          - oneplus_ace_b
+          
+          # oneplus_ace_2v Android 12-16
+          - oneplus_ace_2v_s
+          - oneplus_ace_2v_t
+          - oneplus_ace_2v_u
+          - oneplus_ace_2v_v
+          - oneplus_ace_2v_b
+          
+          # oneplus_ace_3v Android 12-16
+          - oneplus_ace_3v_s
+          - oneplus_ace_3v_t
+          - oneplus_ace_3v_u
+          - oneplus_ace_3v_v
+          - oneplus_ace_3v_b
+          
+          # oneplus_ace_6 Android 12-16
+          - oneplus_ace_6_s
+          - oneplus_ace_6_t
+          - oneplus_ace_6_u
+          - oneplus_ace_6_v
+          - oneplus_ace_6_b
+          
+          # oneplus_ace_6t Android 12-16
+          - oneplus_ace_6t_s
+          - oneplus_ace_6t_t
+          - oneplus_ace_6t_u
+          - oneplus_ace_6t_v
+          - oneplus_ace_6t_b
+          
+          # oneplus_ace_pro Android 12-16
+          - oneplus_ace_pro_s
+          - oneplus_ace_pro_t
+          - oneplus_ace_pro_u
+          - oneplus_ace_pro_v
+          - oneplus_ace_pro_b
+          
+          # oneplus_ace_race Android 12-16
+          - oneplus_ace_race_s
+          - oneplus_ace_race_t
+          - oneplus_ace_race_u
+          - oneplus_ace_race_v
+          - oneplus_ace_race_b
+          
+          # oneplus_ace2 Android 12-16
+          - oneplus_ace2_s
+          - oneplus_ace2_t
+          - oneplus_ace2_u
+          - oneplus_ace2_v
+          - oneplus_ace2_b
+          
+          # oneplus_ace2_pro Android 12-16
+          - oneplus_ace2_pro_s
+          - oneplus_ace2_pro_t
+          - oneplus_ace2_pro_u
+          - oneplus_ace2_pro_v
+          - oneplus_ace2_pro_b
+          
+          # oneplus_ace3 Android 12-16
+          - oneplus_ace3_s
+          - oneplus_ace3_t
+          - oneplus_ace3_u
+          - oneplus_ace3_v
+          - oneplus_ace3_b
+          
+          # oneplus_ace3_pro Android 12-16
+          - oneplus_ace3_pro_s
+          - oneplus_ace3_pro_t
+          - oneplus_ace3_pro_u
+          - oneplus_ace3_pro_v
+          - oneplus_ace3_pro_b
+          
+          # oneplus_ace5 Android 12-16
+          - oneplus_ace5_s
+          - oneplus_ace5_t
+          - oneplus_ace5_u
+          - oneplus_ace5_v
+          - oneplus_ace5_b
+          
+          # oneplus_ace5_pro Android 12-16
+          - oneplus_ace5_pro_s
+          - oneplus_ace5_pro_t
+          - oneplus_ace5_pro_u
+          - oneplus_ace5_pro_v
+          - oneplus_ace5_pro_b
+          
+          # oneplus_ace5_race Android 12-16
+          - oneplus_ace5_race_s
+          - oneplus_ace5_race_t
+          - oneplus_ace5_race_u
+          - oneplus_ace5_race_v
           - oneplus_ace5_race_b
+          
+          # oneplus_ace5_ultra Android 12-16
+          - oneplus_ace5_ultra_s
+          - oneplus_ace5_ultra_t
+          - oneplus_ace5_ultra_u
+          - oneplus_ace5_ultra_v
           - oneplus_ace5_ultra_b
+          
+          # oneplus_nord_3 Android 12-16
+          - oneplus_nord_3_s
+          - oneplus_nord_3_t
+          - oneplus_nord_3_u
+          - oneplus_nord_3_v
+          - oneplus_nord_3_b
+          
+          # oneplus_nord_4 Android 12-16
+          - oneplus_nord_4_s
+          - oneplus_nord_4_t
+          - oneplus_nord_4_u
+          - oneplus_nord_4_v
+          - oneplus_nord_4_b
+          
+          # oneplus_nord_5 Android 12-16
+          - oneplus_nord_5_s
+          - oneplus_nord_5_t
+          - oneplus_nord_5_u
+          - oneplus_nord_5_v
+          - oneplus_nord_5_b
+          
+          # oneplus_nord_ce4 Android 12-16
+          - oneplus_nord_ce۴_s
+          - oneplus_nord_ce4_t
+          - oneplus_nord_ce4_u
+          - oneplus_nord_ce4_v
+          - oneplus_nord_ce4_b
+          
+          # oneplus_nord_ce4_lite_5g Android 12-16
+          - oneplus_nord_ce4_lite_5g_s
+          - oneplus_nord_ce4_lite_5g_t
+          - oneplus_nord_ce4_lite_5g_u
+          - oneplus_nord_ce4_lite_5g_v
+          - oneplus_nord_ce4_lite_5g_b
+          
+          # oneplus_nord_ce5 Android 12-16
+          - oneplus_nord_ce5_s
+          - oneplus_nord_ce5_t
+          - oneplus_nord_ce5_u
+          - oneplus_nord_ce5_v
+          - oneplus_nord_ce5_b
+          
+          # oneplus_open Android 12-16
+          - oneplus_open_s
+          - oneplus_open_t
+          - oneplus_open_u
+          - oneplus_open_v
+          - oneplus_open_b
+          
+          # oneplus_pad_lite Android 12-16
+          - oneplus_pad_lite_s
+          - oneplus_pad_lite_t
+          - oneplus_pad_lite_u
+          - oneplus_pad_lite_v
+          - oneplus_pad_lite_b
+          
+          # oneplus_pad_mt6897 Android 12-16
+          - oneplus_pad_mt6897_s
+          - oneplus_pad_mt6897_t
+          - oneplus_pad_mt6897_u
+          - oneplus_pad_mt6897_v
+          - oneplus_pad_mt6897_b
+          
+          # oneplus_pad_mt6983 Android 12-16
+          - oneplus_pad_mt6983_s
+          - oneplus_pad_mt6983_t
+          - oneplus_pad_mt6983_u
+          - oneplus_pad_mt6983_v
+          - oneplus_pad_mt6983_b
+          
+          # oneplus_pad_pro Android 12-16
+          - oneplus_pad_pro_s
+          - oneplus_pad_pro_t
+          - oneplus_pad_pro_u
+          - oneplus_pad_pro_v
+          - oneplus_pad_pro_b
+          
+          # oneplus_pad2 Android 12-16
+          - oneplus_pad2_s
+          - oneplus_pad2_t
+          - oneplus_pad2_u
+          - oneplus_pad2_v
+          - oneplus_pad2_b
+          
+          # oneplus_pad2_mt6991 Android 12-16
+          - oneplus_pad2_mt6991_s
+          - oneplus_pad2_mt6991_t
+          - oneplus_pad2_mt6991_u
+          - oneplus_pad2_mt6991_v
           - oneplus_pad2_mt6991_b
-          - oneplus_ace_6
-          - oneplus_ace_6t
-          - oneplus_15
+          
+          # oneplus_pad_2_pro Android 12-16
+          - oneplus_pad_2_pro_s
+          - oneplus_pad_2_pro_t
+          - oneplus_pad_2_pro_u
+          - oneplus_pad_2_pro_v
+          - oneplus_pad_2_pro_b
+          
+          # oneplus_pad_3 Android 12-16
+          - oneplus_pad_3_s
+          - oneplus_pad_3_t
+          - oneplus_pad_3_u
+          - oneplus_pad_3_v
+          - oneplus_pad_3_b
+
+
+          
       MANAGER_SOURCE:
         type: choice
         description: "管理器调用方向"
