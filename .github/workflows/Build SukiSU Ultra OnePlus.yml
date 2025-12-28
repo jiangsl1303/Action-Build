@@ -265,9 +265,7 @@ on:
           - oneplus_pad_mt6983_b
           
           # oneplus_pad_pro Android 12-16
-          - oneplus_pad_pro_s
-          - oneplus_pad_pro_t
-          - oneplus_pad_pro_u
+          - oneplus_pad_pro
           - oneplus_pad_pro_v
           - oneplus_pad_pro_b
           
