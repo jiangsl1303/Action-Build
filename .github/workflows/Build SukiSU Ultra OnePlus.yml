@@ -165,12 +165,10 @@ on:
           - oneplus_ace3_pro_v
           - oneplus_ace3_pro_b
           
-          # oneplus_ace5 Android 12-16
-          - oneplus_ace5_s
-          - oneplus_ace5_t
-          - oneplus_ace5_u
-          - oneplus_ace5_v
+          # oneplus_ace5 Android 15-16
+          - oneplus_ace5
           - oneplus_ace5_b
+          
           
           # oneplus_ace5_pro Android 12-16
           - oneplus_ace5_pro
