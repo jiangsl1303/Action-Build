@@ -1,4 +1,4 @@
-name: Build OnePlus_SukiSU Ultra All
+name: Build All OnePlus Kernels
 on:
   workflow_dispatch:
     inputs:
