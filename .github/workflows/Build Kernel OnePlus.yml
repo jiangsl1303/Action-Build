@@ -117,11 +117,7 @@ on:
           - oneplus_ace_6
           
           # oneplus_ace_6t Android 12-16
-          - oneplus_ace_6t_s
-          - oneplus_ace_6t_t
-          - oneplus_ace_6t_u
-          - oneplus_ace_6t_v
-          - oneplus_ace_6t_b
+          - oneplus_ace_6t
           
           # oneplus_ace_pro Android 12-16
           - oneplus_ace_pro_s
