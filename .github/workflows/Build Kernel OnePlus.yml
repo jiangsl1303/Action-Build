@@ -828,7 +828,7 @@ jobs:
             echo "   日期: $KSU_RECOMMEND_DATE"
           else
             echo "❌ 未找到合适的 KernelSU commit"
-            KSU_RECOMMEND_HASH="557e7f81538e57d22d90cff045964dd7fa375206"
+            KSU_RECOMMEND_HASH="7a769775"
           fi
           
           echo ""
@@ -1026,7 +1026,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
           
-          DEFAULT_COMMIT="aef96cd93cf78c4d7bd1615e15e1ce9272d1ecfc"
+          DEFAULT_COMMIT="7a769775"
           
           if [[ -n "$MANUAL_HASH" ]]; then
             git fetch origin "$BRANCH_NAME" --depth=50
