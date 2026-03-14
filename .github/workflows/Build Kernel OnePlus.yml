@@ -1026,7 +1026,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/118fcf507aac52f078481abea00db6339875660c/kernel/setup.sh" | bash -s "$BRANCH_NAME"
           cd ./KernelSU
           
-          DEFAULT_COMMIT="7a769775"
+          DEFAULT_COMMIT="e6518a654f7a854235804184ee1ecb06430a9a53"
           
           if [[ -n "$MANUAL_HASH" ]]; then
             git fetch origin "$BRANCH_NAME" --depth=50
