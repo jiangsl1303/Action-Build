@@ -581,7 +581,7 @@ jobs:
           echo "KV3=${NEW_VERSION}"     | tr -d '.' >> $GITHUB_ENV
           echo "KERNEL_SHORT_VERSION=$(echo $NEW_VERSION | cut -d. -f1,2)" >> $GITHUB_ENV
           echo "KERNEL_SHORT_PATCH_VERSION=$(echo $NEW_VERSION | cut -d. -f1,2 | tr '.' '_')" >> $GITHUB_ENV
-          echo "KMI=${KANDROID_VERSION}-${KERNEL_VERSION}" >> $GITHUB_ENV
+          echo "KMI=${BRANCH%-*}-${BRANCH#*-}" >> $GITHUB_ENV
 
       - name: Rust Version Handling
         run: |
