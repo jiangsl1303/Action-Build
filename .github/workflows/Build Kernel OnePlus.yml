@@ -447,10 +447,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/apt-cache-debs
-          key: apt-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-v2
-          restore-keys: |
-            apt-cache-${{ runner.os }}-${{ github.ref_name }}-
-            apt-cache-${{ runner.os }}-
+          key: apt-cache-${{ runner.os }}-${{ github.ref_name }}-v3
 
       - name: Install Dependencies
         run: |
@@ -1390,6 +1387,7 @@ jobs:
           set -u
 
           export PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$CLANG_PREBUILT_BIN:$PATH"
+          export LIBCLANG_PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$CLANG_FULL_VNAME/lib"
           export PATH="/usr/lib/ccache:$PATH"
 
           # BINDGEN 检测与 fallback
