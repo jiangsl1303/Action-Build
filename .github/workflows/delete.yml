@@ -221,10 +221,9 @@ jobs:
             done < <(gh run list \
               --repo "$REPO" \
               --workflow "$WORKFLOW_NAME" \
-              --status "$CONCLUSION" \
               --limit "$COUNT" \
-              --json databaseId,startedAt \
-              --jq '.[] | [(.databaseId | tostring), .startedAt] | join(" ")' \
+              --json databaseId,startedAt,conclusion \
+              --jq ".[] | select(.conclusion == \"$CONCLUSION\") | [(.databaseId | tostring), .startedAt] | join(\" \")" \
               | sort $SORT_OPT -k2)
 
             echo "已删除 $DELETED 条 $CONCLUSION 记录。"
@@ -237,7 +236,7 @@ jobs:
       actions: write
     steps:
       - name: Clean caches by mode
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
