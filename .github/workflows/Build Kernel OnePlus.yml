@@ -1394,9 +1394,9 @@ jobs:
 
           # BINDGEN 检测与 fallback
           if [[ "$ENABLE_RUST" == "true" ]]; then
-            BINDGEN_BIN="$GITHUB_WORKSPACE/prebuilts/clang-tools/linux-x86/bin/bindgen"
+            BINDGEN_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang-tools/linux-x86/bin/bindgen"
             if [ ! -x "$BINDGEN_BIN" ]; then
-              BINDGEN_BIN="$GITHUB_WORKSPACE/prebuilts-master/clang-tools/linux-x86/bin/bindgen"
+              BINDGEN_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts-master/clang-tools/linux-x86/bin/bindgen"
             fi
             if [ -x "$BINDGEN_BIN" ]; then
               export BINDGEN="$BINDGEN_BIN"
@@ -1415,10 +1415,10 @@ jobs:
           fi
 
           # PAHOLE 检测与 fallback
-          PAHOLE_BIN="$GITHUB_WORKSPACE/prebuilts/kernel-build-tools/linux-x86/bin/pahole"
+          PAHOLE_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/kernel-build-tools/linux-x86/bin/pahole"
           if [ ! -x "$PAHOLE_BIN" ]; then
             echo "⚠️ prebuilts pahole 未找到: $PAHOLE_BIN"
-            PAHOLE_BIN="$GITHUB_WORKSPACE/prebuilts-master/kernel-build-tools/linux-x86/bin/pahole"
+            PAHOLE_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts-master/kernel-build-tools/linux-x86/bin/pahole"
           fi
           if [ ! -x "$PAHOLE_BIN" ]; then
             echo "⚠️ prebuilts pahole 未找到: $PAHOLE_BIN"
@@ -1435,10 +1435,10 @@ jobs:
 
           # RUSTC 检测与 fallback
           if [[ "$ENABLE_RUST" == "true" ]]; then
-            RUSTC_BIN="$GITHUB_WORKSPACE/prebuilts/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
+            RUSTC_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
             if [ ! -x "$RUSTC_BIN" ]; then
               echo "⚠️ prebuilts rustc 未找到: $RUSTC_BIN"
-              RUSTC_BIN="$GITHUB_WORKSPACE/prebuilts-master/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
+              RUSTC_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts-master/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
             fi
             if [ ! -x "$RUSTC_BIN" ]; then
               echo "⚠️ prebuilts rustc 未找到: $RUSTC_BIN"
