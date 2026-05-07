@@ -447,7 +447,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/apt-cache-debs
-          key: apt-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-v1
+          key: apt-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-v2
           restore-keys: |
             apt-cache-${{ runner.os }}-${{ github.ref_name }}-
             apt-cache-${{ runner.os }}-
@@ -460,7 +460,7 @@ jobs:
           else
             echo "✅ APT 缓存命中，跳过 apt-get update"
           fi
-          sudo apt-get install -y --no-install-recommends -o Dir::Cache::Archives="$HOME/apt-cache-debs" python3 git curl libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix kmod libdw-dev elfutils
+          sudo apt-get install -y --no-install-recommends -o Dir::Cache::Archives="$HOME/apt-cache-debs" python3 git curl libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix kmod libdw-dev elfutils dwarves
           sudo rm -f ~/apt-cache-debs/lock
           sudo rm -rf ~/apt-cache-debs/partial
 
@@ -474,7 +474,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.BUILD_METHOD }}-${{ github.event.inputs.FAST_BUILD == 'true' && 'alpha' || 'beta' }}-16.7
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.BUILD_METHOD }}-${{ github.event.inputs.FAST_BUILD == 'true' && 'alpha' || 'beta' }}-16.8
 
       - name: Initialize Ccache
         if: ${{ github.event.inputs.BUILD_NOCCACHE == 'false' }}
@@ -1353,7 +1353,7 @@ jobs:
             exit 0
           fi
 
-          # 优先尝试从 CLANG_PREBUILT_BIN 提取 clang-r 版本
+          # 优先尝试从 CLANG_PREBUILT_BIN 提取 clang-r
           if [[ "$CLANG_PREBUILT_BIN" =~ (clang-r[0-9a-z]+) ]]; then
             CLANG_VERSION="${BASH_REMATCH[1]}"
           else
@@ -1370,17 +1370,18 @@ jobs:
             exit 0
           fi
 
-          # 替换成新的 CLANG_VERSION 值
+          # 替换成新的 CLANG_VERSION 值 (rxxxx)
           CLANG_PREBUILT_BIN=${CLANG_PREBUILT_BIN/\$\{CLANG_VERSION\}/$CLANG_VERSION}
-          # 获取 CLANG_PREBUILT_BIN 的第一个目录名，赋值给 CLANG_DIR
-          CLANG_DIR=$(echo "$CLANG_PREBUILT_BIN" | cut -d'/' -f1)
-          # 获取 CLANG_PREBUILT_BIN 的上一级目录名，赋值给 CLANG_PATH
-          CLANG_PATH=$(basename "$(dirname "$CLANG_PREBUILT_BIN")")
+          # 获取 CLANG_PREBUILT_BIN 的第一个目录名，赋值给 CLANG_PREBUILT_NAME (prebuilts？prebuilts-master？)
+          CLANG_PREBUILT_NAME=$(echo "$CLANG_PREBUILT_BIN" | cut -d'/' -f1)
+          # 获取 CLANG_PREBUILT_BIN 的上一级目录名，赋值给 CLANG_FULL_VNAME (clang-rxxxx)
+          CLANG_FULL_VNAME=$(basename "$(dirname "$CLANG_PREBUILT_BIN")")
 
           echo "-----------------------"
+          echo "✅ CLANG_PREBUILT_BIN=$CLANG_PREBUILT_BIN"
           echo "✅ CLANG_VERSION=$CLANG_VERSION"
-          echo "✅ CLANG_DIR=$CLANG_DIR"
-          echo "✅ CLANG_PATH=$CLANG_PATH"
+          echo "✅ CLANG_PREBUILT_NAME=$CLANG_PREBUILT_NAME"
+          echo "✅ CLANG_FULL_VNAME=$CLANG_FULL_VNAME"
           echo "✅ USE_LLVM_IAS=$USE_LLVM_IAS"
           echo "-----------------------"
 
@@ -1391,9 +1392,66 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$CLANG_PREBUILT_BIN:$PATH"
           export PATH="/usr/lib/ccache:$PATH"
 
+          # BINDGEN 检测与 fallback
           if [[ "$ENABLE_RUST" == "true" ]]; then
-            export BINDGEN="bindgen"
-            export LIBCLANG_PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$(dirname "$CLANG_PREBUILT_BIN")/lib"
+            BINDGEN_BIN="$GITHUB_WORKSPACE/prebuilts/clang-tools/linux-x86/bin/bindgen"
+            if [ ! -x "$BINDGEN_BIN" ]; then
+              BINDGEN_BIN="$GITHUB_WORKSPACE/prebuilts-master/clang-tools/linux-x86/bin/bindgen"
+            fi
+            if [ -x "$BINDGEN_BIN" ]; then
+              export BINDGEN="$BINDGEN_BIN"
+              echo "✅ bindgen exists: $BINDGEN_BIN"
+              echo "✅ BINDGEN version: $($BINDGEN_BIN --version | head -n1)"
+            else
+              echo "⚠️ prebuilts bindgen 未找到，fallback 到 cargo 安装 bindgen 0.69.5"
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+              source "$HOME/.cargo/env"
+              cargo install bindgen-cli --version 0.69.5
+              BINDGEN_BIN=$(which bindgen)
+              export BINDGEN="$BINDGEN_BIN"
+              echo "✅ BINDGEN_BIN (cargo): $BINDGEN_BIN"
+              echo "✅ BINDGEN version: $($BINDGEN_BIN --version | head -n1)"
+            fi
+          fi
+
+          # PAHOLE 检测与 fallback
+          PAHOLE_BIN="$GITHUB_WORKSPACE/prebuilts/kernel-build-tools/linux-x86/bin/pahole"
+          if [ ! -x "$PAHOLE_BIN" ]; then
+            echo "⚠️ prebuilts pahole 未找到: $PAHOLE_BIN"
+            PAHOLE_BIN="$GITHUB_WORKSPACE/prebuilts-master/kernel-build-tools/linux-x86/bin/pahole"
+          fi
+          if [ ! -x "$PAHOLE_BIN" ]; then
+            echo "⚠️ prebuilts pahole 未找到: $PAHOLE_BIN"
+            PAHOLE_BIN=$(which pahole 2>/dev/null || true)
+            if [ -x "$PAHOLE_BIN" ]; then
+              echo "✅ pahole fallback to PATH: $PAHOLE_BIN"
+            else
+              echo "❌ pahole 完全缺失，终止构建"
+              exit 13
+            fi
+          else
+            echo "✅ pahole exists: $PAHOLE_BIN"
+          fi
+
+          # RUSTC 检测与 fallback
+          if [[ "$ENABLE_RUST" == "true" ]]; then
+            RUSTC_BIN="$GITHUB_WORKSPACE/prebuilts/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
+            if [ ! -x "$RUSTC_BIN" ]; then
+              echo "⚠️ prebuilts rustc 未找到: $RUSTC_BIN"
+              RUSTC_BIN="$GITHUB_WORKSPACE/prebuilts-master/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
+            fi
+            if [ ! -x "$RUSTC_BIN" ]; then
+              echo "⚠️ prebuilts rustc 未找到: $RUSTC_BIN"
+              RUSTC_BIN=$(which rustc 2>/dev/null || true)
+              if [ -x "$RUSTC_BIN" ]; then
+                echo "✅ rustc fallback to PATH: $RUSTC_BIN"
+              else
+                echo "❌ rustc 完全缺失且 ENABLE_RUST=true，终止构建"
+                exit 13
+              fi
+            else
+              echo "✅ rustc exists: $RUSTC_BIN"
+            fi
           fi
 
           cd ./common
@@ -1417,7 +1475,7 @@ jobs:
             HOSTCC="ccache clang"
             LD=ld.lld
             HOSTLD=ld.lld
-            PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
+            PAHOLE="$PAHOLE_BIN"
             KCFLAGS="$KCFLAGS"
           )
 
@@ -1425,9 +1483,11 @@ jobs:
             MAKE_ARGS=(LLVM_IAS=1 "${MAKE_ARGS[@]}")
           fi
           if [[ "$ENABLE_RUST" == "true" ]]; then
-            MAKE_ARGS=(RUSTC=../../prebuilts/rust/linux-x86/$RUSTC_VERSION/bin/rustc "${MAKE_ARGS[@]}")
+            MAKE_ARGS=(RUSTC="$RUSTC_BIN" "${MAKE_ARGS[@]}")
           fi
+
           make O=out "${MAKE_ARGS[@]}" gki_defconfig
+
           if [[ "$KERNEL_VERSION" == "5.10" || "$KERNEL_VERSION" == "5.15" ]]; then
             echo ">> 设置 LTO = thin"
             scripts/config --file out/.config -e LTO_CLANG
@@ -1443,6 +1503,7 @@ jobs:
             scripts/config --file out/.config -d LTO_CLANG_THIN
             scripts/config --file out/.config -d LTO_CLANG_FULL
           fi
+
           make O=out "${MAKE_ARGS[@]}" olddefconfig
           make -j"$(nproc --all)" O=out "${MAKE_ARGS[@]}"
           ccache -s
