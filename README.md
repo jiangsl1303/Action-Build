@@ -15,15 +15,17 @@
 禁止宣传**没有任何修改**的`fork`仓库，详见[LICENSE](LICENSE)
 <details>
 <summary><strong>点击查看如何fork项目</strong></summary>
-<img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/make.gif" width="500"/>
-<summary>请注意，如果你想使用其他分支管理器项目，请在fork时关闭“仅复制SukiSU Ultra分支”</summary>
+<p>
+  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/start.gif" width="500"/>
+  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/start(2).png" width="500"/>
+</p>
+<summary>请注意，如果你想使用其他分支管理器项目，请在fork时关闭“仅复制SukiSU-Ultra分支”</summary>
 </details>
  
 <details>
 <summary><strong>点击查看如何同步fork后的项目到最新</strong></summary>
 <p>
-  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/syncfork.png" width="150"/>
-  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/syncfork(2).png" width="150"/>
+  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/syncfork.png" width="500"/>
 </p>
 <summary>请及时同步!某些更新可能会导致旧版失效报错!如果同步后依旧运行失败请删除并重新fork!完成以上步骤后仍有问题再反馈提交issue</summary>
 </details>
@@ -60,7 +62,7 @@
 >
 >|| 平均耗时范围|最大耗时|
 >|------------------|----------------------|------------|
->| `极速构建所有机型` | `1st:19min ~ 35min 2nd:9min ~ 19min` | `42min`|
+>| `极速构建所有机型` | `1st:17min ~ 35min 2nd:6min ~ 17min` | `32min`|
 >| `内核版本5.10-5.15使用官方脚本构建` | `29min ~ 35min`| `45min`    |
 >| `内核版本6.1-6.12使用官方脚本构建` | `59min ~ 1h12min`| `1h28min` |
 >
