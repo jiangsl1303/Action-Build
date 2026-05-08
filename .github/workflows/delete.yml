@@ -23,6 +23,7 @@ on:
           - all
           - ccache
           - apt-cache
+          - thinlto-cache
       count:
         description: '最多删除的运行总条数'
         required: false
@@ -264,6 +265,7 @@ jobs:
                   case 'all':       matched = true; break;
                   case 'ccache':    matched = key.startsWith('ccache-'); break;
                   case 'apt-cache': matched = key.includes('apt-cache') || key.includes('apt'); break;
+                  case 'thinlto-cache': matched = key.startsWith('thinlto-'); break;
                   default:          matched = false;
                 }
                 if (matched) {
