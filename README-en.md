@@ -15,15 +15,17 @@
 Prohibit the promotion of forked repositories with **no modifications**; see [LICENSE](LICENSE)
 <details>
 <summary><strong>Click to view how to fork the project</strong></summary>
-<img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/make.gif" width="500"/>
-<summary>Please note, if you want to use other branch manager projects, make sure to disable 'Copy only the SukiSU Ultra branch' when forking.</summary>
+<p>
+  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/start.gif" width="500"/>
+  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/start(2).png" width="500"/>
+</p>
+<summary>Please note, if you want to use other branch manager projects, make sure to disable 'Copy only the SukiSU-Ultra branch' when forking.</summary>
 </details>
  
 <details>
 <summary><strong>Click to view how to sync the forked project to the latest</strong></summary>
 <p>
-  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/syncfork.png" width="150"/>
-  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/syncfork(2).png" width="150"/>
+  <img src="https://github.com/Numbersf/Action-Build/blob/SukiSU-Ultra/pic/syncfork.png" width="500"/>
 </p>
 <summary>Please sync promptly! Some updates may cause older versions to fail! If it still fails after syncing, delete and fork again! If the issue persists, then submit an issue for feedback.</summary>
 </details>
@@ -60,7 +62,7 @@ Prohibit the promotion of forked repositories with **no modifications**; see [LI
 >
 >|| Average Duration Range|Maximum Duration|
 >|------------------|----------------------|------------|
->| `Ultra-fast build for all devices` | `1st:19min ~ 35min 2nd:9min ~ 19min` | `42min`|
+>| `Ultra-fast build for all devices` | `1st:17min ~ 35min 2nd:6min ~ 17min` | `32min`|
 >| `Kernel versions 5.10–5.15 built using official script` | `29min ~ 35min`| `45min`    |
 >| `Kernel versions 6.1-6.12 built using official script` | `59min ~ 1h12min`| `1h28min` |
 >

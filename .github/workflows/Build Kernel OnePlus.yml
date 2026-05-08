@@ -110,6 +110,11 @@ on:
         description: "分支名(必填)/自定义版本标识(留空不修改)/回退分支提交哈希版本(留空不修改)"
         required: false
         default: "builtin/Numbersf/"
+      LZ4_UPDATE:
+        type: boolean
+        description: "(危险)是否升级LZ4到上游最新？"
+        required: true
+        default: false
       ZRAM:
         type: string
         description: "ZRAM(0关闭1开启)/算法名/大小"
@@ -272,7 +277,7 @@ jobs:
           fi
           if [[ -z "$FOUND_REPO" || ! -s "$XML_PATH" ]]; then
             echo "❌ 无法在任何仓库中找到 ${FILE}.xml"
-            exit 9
+            exit 8
           fi
           echo "MANIFEST_REPO=$FOUND_REPO" >> "$GITHUB_ENV"
           echo "MANIFEST_REPO_NAME=$FOUND_REPO_NAME" >> "$GITHUB_ENV"
@@ -428,7 +433,7 @@ jobs:
           git config --global user.name "Numbersf"
           git config --global user.email "263623064@qq.com"
           mkdir kernel_workspace && cd kernel_workspace
-          git clone https://github.com/Numbersf/Action-Build.git
+          git clone https://github.com/Numbersf/Action-Build.git -b SukiSU-Ultra
 
       - name: Fork Check
         run: |
@@ -443,10 +448,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/apt-cache-debs
-          key: apt-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-v1
-          restore-keys: |
-            apt-cache-${{ runner.os }}-${{ github.ref_name }}-
-            apt-cache-${{ runner.os }}-
+          key: apt-cache-${{ runner.os }}-${{ github.ref_name }}-v3
 
       - name: Install Dependencies
         run: |
@@ -456,7 +458,7 @@ jobs:
           else
             echo "✅ APT 缓存命中，跳过 apt-get update"
           fi
-          sudo apt-get install -y --no-install-recommends -o Dir::Cache::Archives="$HOME/apt-cache-debs" python3 git curl libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix kmod libdw-dev elfutils
+          sudo apt-get install -y --no-install-recommends -o Dir::Cache::Archives="$HOME/apt-cache-debs" python3 git curl libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix kmod libdw-dev elfutils dwarves
           sudo rm -f ~/apt-cache-debs/lock
           sudo rm -rf ~/apt-cache-debs/partial
 
@@ -470,7 +472,14 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.BUILD_METHOD }}-${{ github.event.inputs.FAST_BUILD == 'true' && 'alpha' || 'beta' }}-16.7
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.BUILD_METHOD }}-${{ github.event.inputs.FAST_BUILD == 'true' && 'alpha' || 'beta' }}-16.8
+
+      - name: Restore ThinLTO Cache
+        if: ${{ github.event.inputs.BUILD_NOCCACHE == 'false' && github.event.inputs.FAST_BUILD == 'true' }}
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/kernel_workspace/.thinlto-cache
+          key: thinlto-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-16.8
 
       - name: Initialize Ccache
         if: ${{ github.event.inputs.BUILD_NOCCACHE == 'false' }}
@@ -534,18 +543,19 @@ jobs:
           # 获取内核 Android 版本号(KANDROID_VERSION)以及内核版本号(KERNEL_VERSION)
           for f in ./common/build.config.constants ./common/build.config.common; do
             if [ -f "$f" ]; then
-              BRANCH=$(grep -m1 '^BRANCH=' "$f" | cut -d= -f2)
-              [ -n "$BRANCH" ] && break
+              KMI=$(grep -m1 '^BRANCH=' "$f" | cut -d= -f2)
+              [ -n "$KMI" ] && break
             fi
           done
-          if [[ -z "$BRANCH" && -n "$KERNEL_REPOS" ]]; then
-            BRANCH=$(grep -m1 '^android' "./$KERNEL_REPOS/android/ACK_SHA" | cut -d- -f1,2)
+          if [[ -z "$KMI" && -n "$KERNEL_REPOS" ]]; then
+            KMI=$(grep -m1 '^android' "./$KERNEL_REPOS/android/ACK_SHA" | cut -d- -f1,2)
           fi
-          if [ -n "$BRANCH" ]; then
-            echo "KANDROID_VERSION=${BRANCH%-*}" >> $GITHUB_ENV
-            echo "KERNEL_VERSION=${BRANCH#*-}" >> $GITHUB_ENV
+          if [ -n "$KMI" ]; then
+            echo "KMI=$KMI" >> $GITHUB_ENV
+            echo "KANDROID_VERSION=${KMI%-*}" >> $GITHUB_ENV
+            echo "KERNEL_VERSION=${KMI#*-}" >> $GITHUB_ENV
           else
-            echo "No BRANCH found in build.config* and ACK_SHA files"
+            echo "No KMI found in build.config* and ACK_SHA files"
           fi
 
           # 从 Makefile 获取完整内核版本号(TKERNEL_VERSION)以及可选的修改内核等级
@@ -572,8 +582,8 @@ jobs:
           fi
 
           # 内核版本的数字转换(对比用)
-          echo "KV1=${BRANCH#*-}"       | cut -d. -f1 >> $GITHUB_ENV
-          echo "KV2=${BRANCH#*-}"       | tr -d '.' >> $GITHUB_ENV
+          echo "KV1=${KMI#*-}"       | cut -d. -f1 >> $GITHUB_ENV
+          echo "KV2=${KMI#*-}"       | tr -d '.' >> $GITHUB_ENV
           echo "KV3=${NEW_VERSION}"     | tr -d '.' >> $GITHUB_ENV
           echo "KERNEL_SHORT_VERSION=$(echo $NEW_VERSION | cut -d. -f1,2)" >> $GITHUB_ENV
           echo "KERNEL_SHORT_PATCH_VERSION=$(echo $NEW_VERSION | cut -d. -f1,2 | tr '.' '_')" >> $GITHUB_ENV
@@ -819,6 +829,9 @@ jobs:
           if [ "${{ github.event.inputs.RE_KERNEL }}" = "true" ]; then
             git clone https://github.com/Sakion-Team/Re-Kernel.git
           fi
+          if [ "${{ github.event.inputs.LZ4_UPDATE }}" = "true" ]; then
+            git clone https://github.com/lz4/lz4.git
+          fi
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           cd kernel_platform
           if [ "${{ github.event.inputs.SUSFS_META }}" != "-1" ]; then
@@ -837,10 +850,9 @@ jobs:
           fi
 
           cd ./common
-          GKI_V="${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
           SUBLEVEL=$(grep '^SUBLEVEL *=' Makefile | head -n1 | cut -d= -f2 | tr -d ' ')
 
-          if [ "$GKI_V" == "android13-5.15" ] && [ "$SUBLEVEL" -lt 123 ]; then
+          if [ "$KMI" == "android13-5.15" ] && [ "$SUBLEVEL" -lt 123 ]; then
             echo "修复内核版本为5.15.0~5.15.123仅支持旧版C库造成的一些bug"
             cp ../../Action-Build/patches/fix_5.15.legacy ./fix_5.15.legacy.patch
             patch -p1 < fix_5.15.legacy.patch
@@ -862,7 +874,7 @@ jobs:
           if [ "${{ github.event.inputs.SUSFS_META }}" != "-1" ]; then
             # Fake Patch to fix failures
             fake_patched=0
-            if [ "$GKI_V" = "android15-6.6" ]; then
+            if [ "$KMI" = "android15-6.6" ]; then
               if ! grep -qxF $'\tunsigned int nr_subpages = __PAGE_SIZE / PAGE_SIZE;' ./fs/proc/task_mmu.c; then
                 echo "未找到 nr_subpages，正在进行补丁修复"
                 sed -i -e '/int ret = 0, copied = 0;/a \\tunsigned int nr_subpages \= __PAGE_SIZE \/ PAGE_SIZE;' -e '/int ret = 0, copied = 0;/a \\tpagemap_entry_t \*res = NULL;' ./fs/proc/task_mmu.c
@@ -873,7 +885,7 @@ jobs:
                 sed -i '/#include <linux\/cpufreq_times.h>/a #include <linux\/dma-buf.h>' ./fs/proc/base.c
               fi
             fi
-            if [ "$GKI_V" = "android14-6.1" ]; then
+            if [ "$KMI" = "android14-6.1" ]; then
               if ! grep -qxF $'\tif (!vma_pages(vma))' ./fs/proc/task_mmu.c; then
                 echo "未找到 vma_pages，正在进行补丁修复"
                 fake_patched=1
@@ -883,7 +895,7 @@ jobs:
                 sed -i '/#include <linux\/cpufreq_times.h>/a #include <linux\/dma-buf.h>' ./fs/proc/base.c
               fi
             fi
-            if [ "$GKI_V" = "android12-5.10" ] || [ "$GKI_V" = "android13-5.15" ]; then
+            if [ "$KMI" = "android12-5.10" ] || [ "$KMI" = "android13-5.15" ]; then
               if ! grep -qxF $'\tif (!vma_pages(vma))' ./fs/proc/task_mmu.c; then
                 echo "未找到 vma_pages，正在进行补丁修复"
                 fake_patched=1
@@ -896,12 +908,12 @@ jobs:
 
             # Revert
             if [ "$fake_patched" = 1 ]; then
-              if [ "$GKI_V" = "android15-6.6" ]; then
+              if [ "$KMI" = "android15-6.6" ]; then
                 if grep -qxF $'\tunsigned int nr_subpages = __PAGE_SIZE / PAGE_SIZE;' ./fs/proc/task_mmu.c; then
                   sed -i -e '/unsigned int nr_subpages \= __PAGE_SIZE \/ PAGE_SIZE;/d' -e '/pagemap_entry_t \*res = NULL;/d' ./fs/proc/task_mmu.c
                 fi
               fi
-              if [ "$GKI_V" = "android12-5.10" ] || [ "$GKI_V" = "android13-5.15" ] || [ "$GKI_V" = "android14-6.1" ]; then
+              if [ "$KMI" = "android12-5.10" ] || [ "$KMI" = "android13-5.15" ] || [ "$KMI" = "android14-6.1" ]; then
                 if grep -q 'goto[[:space:]]\+show_pad;' ./fs/proc/task_mmu.c; then
                   sed -i -e 's/goto show_pad;/return 0;/' ./fs/proc/task_mmu.c
                 fi
@@ -957,12 +969,19 @@ jobs:
       - name: Apply DROID_SPACES
         if: ${{ github.event.inputs.DROID_SPACES == 'true' }}
         run: |
+          PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches"
           cd kernel_workspace/kernel_platform/common
           # 注释掉原始的 sysv 结构体定义
-          sed -i 's/struct sysv_sem\s*sysvsem;/\/\/ struct sysv_sem\t\t\tsysvsem;/g' include/linux/sched.h
-          sed -i 's/struct sysv_shm\s*sysvshm;/\/\/ struct sysv_shm\t\t\tsysvshm;/g' include/linux/sched.h
-          # 检查sched.h并修改 KABI 槽位或指针
-          if grep -q "sched_dl_entity.*\*dl_server" include/linux/sched.h; then
+          sed -i 's/^\(\t\)struct sysv_sem\b.*sysvsem;/\1\/\/ struct sysv_sem\t\t\tsysvsem;/' include/linux/sched.h
+          sed -i 's/^\(\t\)struct sysv_shm\b.*sysvshm;/\1\/\/ struct sysv_shm\t\t\tsysvshm;/' include/linux/sched.h
+
+          if [ "$KMI" = "android12-5.10" ]; then
+            echo "为 android12-5.10 修复 sysvipc KABI 绕过及 POSIX_MQUEUE ABI 填充问题..."
+            sed -i '/^\tconst struct sched_class\t\*sched_class;/a \\n#ifndef __GENKSYMS__\n\tstruct sysv_sem\t\t\tsysvsem;\n\tstruct sysv_shm\t\t\tsysvshm;\n#endif\n' include/linux/sched.h
+            sed -i 's/^\tunsigned long mq_bytes;\t\/\* How many bytes can be allocated to mqueue[?] \*\//\t\/\/unsigned long mq_bytes;\t\/* How many bytes can be allocated to mqueue? *\//' include/linux/sched/user.h
+            sed -i '/struct ratelimit_state ratelimit;/,/ANDROID_OEM_DATA_ARRAY(1, 2);/{/^\tANDROID_KABI_RESERVE(1);/{N;N;s/^\tANDROID_KABI_RESERVE(1);\n\tANDROID_KABI_RESERVE(2);\n\tANDROID_OEM_DATA_ARRAY(1, 2);/#if defined(CONFIG_POSIX_MQUEUE)\n\tANDROID_KABI_USE(1, unsigned long mq_bytes);\n\tANDROID_KABI_RESERVE(2);\n\tANDROID_OEM_DATA_ARRAY(1, 2);\n#else\n\tANDROID_KABI_RESERVE(1);\n\tANDROID_KABI_RESERVE(2);\n\tANDROID_OEM_DATA_ARRAY(1, 2);\n#endif/}}' include/linux/sched/user.h
+          # 检查 sched.h 并修改 KABI 槽位或指针
+          elif grep -q "sched_dl_entity.*\*dl_server" include/linux/sched.h; then
             echo "✅ 检测到 dl_server 指针，使用 packed union 方案"
             sed -i 's|\tstruct sched_entity\t\tse;|#ifdef CONFIG_SYSVIPC\n\tunion {\n\t\tchar __kabi_ignored_0;\n\t\tstruct sysv_sem\t\t\tsysvsem;\n\t}__attribute__((packed));\n\tunion {\n\t\tchar __kabi_ignored_1;\n\t\tstruct sysv_shm\t\t\tsysvshm;\n\t}__attribute__((packed));\n#endif\n\n\tstruct sched_entity\t\tse;|' include/linux/sched.h
           elif grep -q "ANDROID_KABI_USE(1," include/linux/sched.h; then
@@ -976,8 +995,113 @@ jobs:
             sed -i -e '/ANDROID_KABI_RESERVE(3);/{N;N;N;s|\tANDROID_KABI_RESERVE(3);\n\tANDROID_KABI_RESERVE(4);\n\tANDROID_KABI_RESERVE(5);\n\tANDROID_KABI_RESERVE(6);|#ifdef CONFIG_SYSVIPC\n\tANDROID_KABI_USE(3, struct sysv_sem sysvsem);\n\t_ANDROID_KABI_REPLACE(ANDROID_KABI_RESERVE(4); ANDROID_KABI_RESERVE(5), struct sysv_shm sysvshm);\n#else\n\tANDROID_KABI_RESERVE(3);\n\tANDROID_KABI_RESERVE(4);\n\tANDROID_KABI_RESERVE(5);\n#endif\n\tANDROID_KABI_RESERVE(6);|;}' include/linux/sched.h
           else
             echo "❌ 无法通过上下文精准匹配 KABI 槽位或对应指针"
-            exit 1
+            exit 9
           fi
+
+          echo "为 oplus_bsp_midas 模块返回幽灵任务以避免空指针崩溃..."
+          patch -p1 --forward < "${PATCH_DIR}/ghost-task-for-midas.patch" || true
+
+      - name: Apply LZ4_DEV
+        if: ${{ github.event.inputs.LZ4_UPDATE == 'true' }}
+        run: |
+          set -euo pipefail
+          LZ4_DIR="${GITHUB_WORKSPACE}/kernel_workspace/lz4/lib"
+          cd kernel_workspace/kernel_platform/common
+          echo "::group::Remove old f2fs bindings"
+          sed -i '/^ifeq ($(CONFIG_F2FS_FS_COMPRESSION_FIXED_OUTPUT),y)$/,/^endif$/d' fs/f2fs/Makefile
+          sed -i '/^#include "lz4armv8\/lz4accel.h"$/d' fs/f2fs/compress.c
+          echo "::endgroup::"
+
+          echo "::group::Delete old LZ4 files"
+          rm -f lib/lz4/lz4_compress.c lib/lz4/lz4_decompress.c lib/lz4/lz4hc_compress.c lib/lz4/lz4defs.h
+          echo "::endgroup::"
+
+          echo "::group::Rename/Copy LZ4 accelerator tree"
+          mkdir -p lib/lz4/lz4armv8
+          if [ -d fs/f2fs/lz4armv8 ]; then
+            mv fs/f2fs/lz4armv8/* lib/lz4/lz4armv8/ 2>/dev/null || true
+            rmdir fs/f2fs/lz4armv8 2>/dev/null || true
+          fi
+          cp -f "${LZ4_DIR}/lz4.c" lib/lz4/
+          cp -f "${LZ4_DIR}/lz4.h" lib/lz4/
+          cp -f "${LZ4_DIR}/lz4hc.c" lib/lz4/
+          cp -f "${LZ4_DIR}/lz4hc.h" lib/lz4/
+          echo "::endgroup::"
+
+          echo "::group::Patch lz4.h lz4hc.h lz4.c lz4hc.c for kernel"
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stddef\.h>//g' lib/lz4/lz4.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stdint\.h>//g' lib/lz4/lz4.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<string\.h>//g' lib/lz4/lz4.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stdlib\.h>//g' lib/lz4/lz4.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<limits\.h>//g' lib/lz4/lz4.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stddef\.h>//g' lib/lz4/lz4hc.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stdint\.h>//g' lib/lz4/lz4hc.h
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stdint\.h>//g' lib/lz4/lz4.c
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<limits\.h>//g' lib/lz4/lz4.c
+          sed -i '/#[[:space:]]*error.*assumes that sizeof(int)/d' lib/lz4/lz4.c
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<stdint\.h>//g' lib/lz4/lz4hc.c
+          sed -i 's/^#[[:space:]]*include[[:space:]]*<limits\.h>//g' lib/lz4/lz4hc.c
+          printf '#ifdef __KERNEL__\n#include <linux/types.h>\n#include <linux/string.h>\n#ifndef LZ4_FORCE_INLINE\n#define LZ4_FORCE_INLINE static inline\n#endif\n#ifndef LZ4_memcpy\n#define LZ4_memcpy(dst, src, sz) memcpy(dst, src, sz)\n#endif\n#ifndef LZ4_memset\n#define LZ4_memset(p, v, sz) memset(p, v, sz)\n#endif\n#ifndef LZ4_memmove\n#define LZ4_memmove(dst, src, sz) memmove(dst, src, sz)\n#endif\n#endif /* __KERNEL__ */\n' | cat - lib/lz4/lz4.h > /tmp/lz4.h.tmp && mv /tmp/lz4.h.tmp lib/lz4/lz4.h
+          printf '#ifdef __KERNEL__\n#endif /* __KERNEL__ */\n' | cat - lib/lz4/lz4hc.h > /tmp/lz4hc.h.tmp && mv /tmp/lz4hc.h.tmp lib/lz4/lz4hc.h
+          echo "::endgroup::"
+
+          echo "::group::Rewrite lib/lz4/Makefile"
+          cat > lib/lz4/Makefile <<'EOF'
+          ccflags-y += -O3 -std=gnu99 -DLZ4_FREESTANDING=1 -DLZ4_FAST_DEC_LOOP=1 -DLZ4_memcpy=memcpy -DLZ4_memset=memset -DLZ4_memmove=memmove
+
+          obj-y += lz4.o lz4hc.o
+          obj-$(CONFIG_ARM64) += $(addprefix lz4armv8/, lz4accel.o lz4armv8.o)
+          EOF
+          if [ -f lib/lz4/lz4armv8/lz4accel.h ]; then
+            echo "ccflags-y += -DCONFIG_LZ4_ARMV8_ACCEL" >> lib/lz4/Makefile
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Rewrite include/linux/lz4.h"
+          cat > include/linux/lz4.h <<'EOF'
+          /* SPDX-License-Identifier: BSD-2-Clause */
+          #ifndef __LINUX_LZ4_H__
+          #define __LINUX_LZ4_H__
+
+          #include "../../lib/lz4/lz4.h"
+          #include "../../lib/lz4/lz4hc.h"
+
+          #if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)
+          #ifdef CONFIG_LZ4_ARMV8_ACCEL
+          #include "../../lib/lz4/lz4armv8/lz4accel.h"
+          #else
+          static inline int LZ4_arm64_decompress_safe(const char *src, char *dst, int slen, int dlen, bool dip)
+          {
+            return LZ4_decompress_safe(src, dst, slen, dlen);
+          }
+          #endif
+          #endif
+
+          #define LZ4_MEM_COMPRESS LZ4_STREAM_MINSIZE
+          #define LZ4HC_MEM_COMPRESS LZ4_STREAMHC_MINSIZE
+          #define LZ4HC_MIN_CLEVEL LZ4HC_CLEVEL_MIN
+          #define LZ4HC_DEFAULT_CLEVEL LZ4HC_CLEVEL_DEFAULT
+          #define LZ4HC_MAX_CLEVEL LZ4HC_CLEVEL_MAX
+
+          /* OEM compat: one-plus passes a private state pointer that upstream ignores */
+          #define LZ4_compress_default(src, dst, srcSize, dstCapacity, state) \
+                  LZ4_compress_default(src, dst, srcSize, dstCapacity)
+          #define LZ4_compress_destSize(src, dst, srcSizePtr, targetDstSize, state) \
+                  LZ4_compress_destSize(src, dst, srcSizePtr, targetDstSize)
+          #define LZ4_compress_HC(src, dst, srcSize, dstCapacity, level, state) \
+                  LZ4_compress_HC(src, dst, srcSize, dstCapacity, level)
+
+          #endif /* __LINUX_LZ4_H__ */
+          EOF
+          echo "::endgroup::"
+
+          echo "::group::Patch arm64 NEON decompress callsites"
+          sed -i '/int out_len = LZ4_decompress_safe(src, dst, slen, \*dlen);/c\int out_len;\n#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)\nout_len = LZ4_arm64_decompress_safe(src, dst, slen, *dlen, false);\n#else\nout_len = LZ4_decompress_safe(src, dst, slen, *dlen);\n#endif' crypto/lz4.c
+
+          sed -i '/int out_len = LZ4_decompress_safe(src, dst, slen, \*dlen);/c\int out_len;\n#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)\nout_len = LZ4_arm64_decompress_safe(src, dst, slen, *dlen, false);\n#else\nout_len = LZ4_decompress_safe(src, dst, slen, *dlen);\n#endif' crypto/lz4hc.c
+
+          sed -i '/result = LZ4_decompress_safe(src.data, dst.data, src.len, dst.len);/c\#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)\nresult = LZ4_arm64_decompress_safe(src.data, dst.data, src.len, dst.len, false);\n#else\nresult = LZ4_decompress_safe(src.data, dst.data, src.len, dst.len);\n#endif' fs/incfs/data_mgmt.c
+          echo "::endgroup::"
 
       - name: Apply ZRAM
         if: startsWith(github.event.inputs.ZRAM, '1/')
@@ -1234,7 +1358,7 @@ jobs:
             exit 0
           fi
 
-          # 优先尝试从 CLANG_PREBUILT_BIN 提取 clang-r 版本
+          # 优先尝试从 CLANG_PREBUILT_BIN 提取 clang-r
           if [[ "$CLANG_PREBUILT_BIN" =~ (clang-r[0-9a-z]+) ]]; then
             CLANG_VERSION="${BASH_REMATCH[1]}"
           else
@@ -1251,17 +1375,18 @@ jobs:
             exit 0
           fi
 
-          # 替换成新的 CLANG_VERSION 值
+          # 替换成新的 CLANG_VERSION 值 (rxxxx)
           CLANG_PREBUILT_BIN=${CLANG_PREBUILT_BIN/\$\{CLANG_VERSION\}/$CLANG_VERSION}
-          # 获取 CLANG_PREBUILT_BIN 的第一个目录名，赋值给 CLANG_DIR
-          CLANG_DIR=$(echo "$CLANG_PREBUILT_BIN" | cut -d'/' -f1)
-          # 获取 CLANG_PREBUILT_BIN 的上一级目录名，赋值给 CLANG_PATH
-          CLANG_PATH=$(basename "$(dirname "$CLANG_PREBUILT_BIN")")
+          # 获取 CLANG_PREBUILT_BIN 的第一个目录名，赋值给 CLANG_PREBUILT_NAME (prebuilts？prebuilts-master？)
+          CLANG_PREBUILT_NAME=$(echo "$CLANG_PREBUILT_BIN" | cut -d'/' -f1)
+          # 获取 CLANG_PREBUILT_BIN 的上一级目录名，赋值给 CLANG_FULL_VNAME (clang-rxxxx)
+          CLANG_FULL_VNAME=$(basename "$(dirname "$CLANG_PREBUILT_BIN")")
 
           echo "-----------------------"
+          echo "✅ CLANG_PREBUILT_BIN=$CLANG_PREBUILT_BIN"
           echo "✅ CLANG_VERSION=$CLANG_VERSION"
-          echo "✅ CLANG_DIR=$CLANG_DIR"
-          echo "✅ CLANG_PATH=$CLANG_PATH"
+          echo "✅ CLANG_PREBUILT_NAME=$CLANG_PREBUILT_NAME"
+          echo "✅ CLANG_FULL_VNAME=$CLANG_FULL_VNAME"
           echo "✅ USE_LLVM_IAS=$USE_LLVM_IAS"
           echo "-----------------------"
 
@@ -1270,12 +1395,78 @@ jobs:
           set -u
 
           export PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$CLANG_PREBUILT_BIN:$PATH"
+          export LIBCLANG_PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$CLANG_FULL_VNAME/lib"
           export PATH="/usr/lib/ccache:$PATH"
 
+          # BINDGEN 检测与 fallback
           if [[ "$ENABLE_RUST" == "true" ]]; then
-            export BINDGEN="bindgen"
-            export LIBCLANG_PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$(dirname "$CLANG_PREBUILT_BIN")/lib"
+            BINDGEN_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang-tools/linux-x86/bin/bindgen"
+            if [ ! -x "$BINDGEN_BIN" ]; then
+              BINDGEN_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts-master/clang-tools/linux-x86/bin/bindgen"
+            fi
+            if [ -x "$BINDGEN_BIN" ]; then
+              export BINDGEN="$BINDGEN_BIN"
+              echo "✅ bindgen exists: $BINDGEN_BIN"
+              echo "✅ BINDGEN version: $($BINDGEN_BIN --version | head -n1)"
+            else
+              echo "⚠️ prebuilts bindgen 未找到，fallback 到 cargo 安装 bindgen 0.69.5"
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+              source "$HOME/.cargo/env"
+              cargo install bindgen-cli --version 0.69.5
+              BINDGEN_BIN=$(which bindgen)
+              export BINDGEN="$BINDGEN_BIN"
+              echo "✅ BINDGEN_BIN (cargo): $BINDGEN_BIN"
+              echo "✅ BINDGEN version: $($BINDGEN_BIN --version | head -n1)"
+            fi
           fi
+
+          # PAHOLE 检测与 fallback
+          PAHOLE_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/kernel-build-tools/linux-x86/bin/pahole"
+          if [ ! -x "$PAHOLE_BIN" ]; then
+            echo "⚠️ prebuilts pahole 未找到: $PAHOLE_BIN"
+            PAHOLE_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts-master/kernel-build-tools/linux-x86/bin/pahole"
+          fi
+          if [ ! -x "$PAHOLE_BIN" ]; then
+            echo "⚠️ prebuilts pahole 未找到: $PAHOLE_BIN"
+            PAHOLE_BIN=$(which pahole 2>/dev/null || true)
+            if [ -x "$PAHOLE_BIN" ]; then
+              echo "✅ pahole fallback to PATH: $PAHOLE_BIN"
+            else
+              echo "❌ pahole 完全缺失，终止构建"
+              exit 13
+            fi
+          else
+            echo "✅ pahole exists: $PAHOLE_BIN"
+          fi
+
+          # RUSTC 检测与 fallback
+          if [[ "$ENABLE_RUST" == "true" ]]; then
+            RUSTC_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
+            if [ ! -x "$RUSTC_BIN" ]; then
+              echo "⚠️ prebuilts rustc 未找到: $RUSTC_BIN"
+              RUSTC_BIN="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts-master/rust/linux-x86/$RUSTC_VERSION/bin/rustc"
+            fi
+            if [ ! -x "$RUSTC_BIN" ]; then
+              echo "⚠️ prebuilts rustc 未找到: $RUSTC_BIN"
+              RUSTC_BIN=$(which rustc 2>/dev/null || true)
+              if [ -x "$RUSTC_BIN" ]; then
+                echo "✅ rustc fallback to PATH: $RUSTC_BIN"
+              else
+                echo "❌ rustc 完全缺失且 ENABLE_RUST=true，终止构建"
+                exit 13
+              fi
+            else
+              echo "✅ rustc exists: $RUSTC_BIN"
+            fi
+          fi
+
+          LDCACHE_DIR="${GITHUB_WORKSPACE}/kernel_workspace/.thinlto-cache"
+          mkdir -p "$LDCACHE_DIR"
+          LD_WRAPPER="${GITHUB_WORKSPACE}/kernel_workspace/ld-wrapper"
+          printf '#!/bin/bash\nexec ld.lld "$@" --thinlto-cache-dir="%s" --thinlto-cache-policy=cache_size_bytes=3g --thinlto-jobs=%s\n' \
+            "$LDCACHE_DIR" "$(nproc --all)" > "$LD_WRAPPER"
+          chmod +x "$LD_WRAPPER"
+          echo "✅ ld-wrapper 已创建: $LD_WRAPPER (cache=$LDCACHE_DIR)"
 
           cd ./common
 
@@ -1296,9 +1487,9 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu-
             CC="ccache clang"
             HOSTCC="ccache clang"
-            LD=ld.lld
+            LD="$LD_WRAPPER"
             HOSTLD=ld.lld
-            PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
+            PAHOLE="$PAHOLE_BIN"
             KCFLAGS="$KCFLAGS"
           )
 
@@ -1306,9 +1497,11 @@ jobs:
             MAKE_ARGS=(LLVM_IAS=1 "${MAKE_ARGS[@]}")
           fi
           if [[ "$ENABLE_RUST" == "true" ]]; then
-            MAKE_ARGS=(RUSTC=../../prebuilts/rust/linux-x86/$RUSTC_VERSION/bin/rustc "${MAKE_ARGS[@]}")
+            MAKE_ARGS=(RUSTC="$RUSTC_BIN" "${MAKE_ARGS[@]}")
           fi
+
           make O=out "${MAKE_ARGS[@]}" gki_defconfig
+
           if [[ "$KERNEL_VERSION" == "5.10" || "$KERNEL_VERSION" == "5.15" ]]; then
             echo ">> 设置 LTO = thin"
             scripts/config --file out/.config -e LTO_CLANG
@@ -1324,6 +1517,7 @@ jobs:
             scripts/config --file out/.config -d LTO_CLANG_THIN
             scripts/config --file out/.config -d LTO_CLANG_FULL
           fi
+
           make O=out "${MAKE_ARGS[@]}" olddefconfig
           make -j"$(nproc --all)" O=out "${MAKE_ARGS[@]}"
           ccache -s
