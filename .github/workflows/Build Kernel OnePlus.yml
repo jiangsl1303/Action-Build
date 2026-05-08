@@ -473,6 +473,13 @@ jobs:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.BUILD_METHOD }}-${{ github.event.inputs.FAST_BUILD == 'true' && 'alpha' || 'beta' }}-16.8
 
+      - name: Restore ThinLTO Cache
+        if: ${{ github.event.inputs.BUILD_NOCCACHE == 'false' && github.event.inputs.FAST_BUILD == 'true' }}
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/kernel_workspace/.thinlto-cache
+          key: thinlto-${{ runner.os }}-${{ github.ref_name }}-${{ github.event.inputs.FILE }}-${{ env.KERNEL_VERSION }}-16.8
+
       - name: Initialize Ccache
         if: ${{ github.event.inputs.BUILD_NOCCACHE == 'false' }}
         run: |
@@ -1452,6 +1459,14 @@ jobs:
             fi
           fi
 
+          LDCACHE_DIR="${GITHUB_WORKSPACE}/kernel_workspace/.thinlto-cache"
+          mkdir -p "$LDCACHE_DIR"
+          LD_WRAPPER="${GITHUB_WORKSPACE}/kernel_workspace/ld-wrapper"
+          printf '#!/bin/bash\nexec ld.lld "$@" --thinlto-cache-dir="%s" --thinlto-cache-policy=cache_size_bytes=3g --thinlto-jobs=%s\n' \
+            "$LDCACHE_DIR" "$(nproc --all)" > "$LD_WRAPPER"
+          chmod +x "$LD_WRAPPER"
+          echo "✅ ld-wrapper 已创建: $LD_WRAPPER (cache=$LDCACHE_DIR)"
+
           cd ./common
 
           # 重映射物理路径
@@ -1471,7 +1486,7 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu-
             CC="ccache clang"
             HOSTCC="ccache clang"
-            LD=ld.lld
+            LD="$LD_WRAPPER"
             HOSTLD=ld.lld
             PAHOLE="$PAHOLE_BIN"
             KCFLAGS="$KCFLAGS"
